@@ -28,6 +28,7 @@ arrange payment yourself.
 | Products | Shop items with photo, price (KSh), category and stock. |
 | Classes | Physical classes with start/end dates. No date shows as "Incoming", and finished classes hide themselves. |
 | Site & contact | The **Shop open** switch (students see "Coming soon" until it is on), school name, home page text, what we do, WhatsApp, email, phone, TikTok, Instagram, About. |
+| Brand | Colours (8 palettes or any two colours), fonts and logo. Owner only when `OWNER_PASSWORD` is set. |
 | Backup | Setup status, test email, download/load a backup, restore the starting content. |
 
 ## Run it
@@ -47,6 +48,7 @@ Students: http://localhost:4000 · Admin: http://localhost:4000/admin
 | `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` | Google sign-in (below). |
 | `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS` | Enrollment emails (below). |
 | `ADMIN_EMAIL` | Where enrollment emails go. Defaults to the business email in Site & contact. |
+| `OWNER_PASSWORD` | Optional. Your own password for the Brand tab. When it is set, the client's `ADMIN_PASSWORD` cannot change colours or logo. |
 | `SESSION_SECRET` | A long random string that signs logins. Set it in production. |
 | `DATA_DIR` | Where lessons, students and photos are saved (default `./data`). Must be a persistent disk. |
 | `PORT` | Default 4000. |
@@ -69,6 +71,24 @@ Students: http://localhost:4000 · Admin: http://localhost:4000/admin
 
 Any email provider that offers SMTP over SSL on port 465 works the same way (Zoho, cPanel hosting mail, and so on).
 Without email set up, new students still appear in Admin → Students.
+
+## Selling a copy to a client
+
+Each client gets their own copy: their own data, admin password and domain.
+
+1. Deploy a new copy of this folder on your host (a new app or a new folder on your server).
+2. Give it its own `DATA_DIR`, a new `ADMIN_PASSWORD` for the client, your `OWNER_PASSWORD`, a new `SESSION_SECRET`,
+   and `BASE_URL` set to their domain.
+3. Point their domain at it (DNS A or CNAME record, as your host shows) and switch on HTTPS.
+4. Google sign-in: add `https://their-domain/auth/google/callback` as a redirect URI. One Google client can
+   hold many domains, or create one per client.
+5. Log in at `their-domain/admin` with your **owner** password:
+   - **Brand:** business name, colours, font, logo.
+   - **Site & contact:** their WhatsApp, email, TikTok, location, home page text, booking hours.
+   - **Services / Products / Classes:** their own offers.
+6. Give the client their `ADMIN_PASSWORD`. They can run everything except the brand.
+
+A new copy starts with the sample content and Maridadi's details, so change them before you hand it over.
 
 ## Putting it online
 

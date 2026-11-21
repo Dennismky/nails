@@ -1,7 +1,7 @@
 // Student site: landing, classes, course (locked/unlocked), lessons with server-marked quizzes,
 // art work photos and steps, about, contact, enrollment and "my progress".
 (function () {
-  const { C, esc, renderText, videoInfo, contactLinks, api, MARK, brandHtml, ICON, fmtDate, PREVIEW } = window.MNA;
+  const { applyTheme, markHtml, C, esc, renderText, videoInfo, contactLinks, api, MARK, brandHtml, ICON, fmtDate, PREVIEW } = window.MNA;
   const app = document.getElementById('app');
   let cat = { site: {}, lessons: [], designs: [], classes: [], me: null, progress: null };
   const SECTION_NAME = { course: 'Foundations', art: 'Nail art techniques' };
@@ -85,7 +85,8 @@
     const s = site(), u = me();
     document.title = s.name || 'Nail Academy';
     document.querySelectorAll('[data-nav="shop"]').forEach((a) => (a.hidden = !u));
-    document.getElementById('brand').innerHTML = MARK + `<span class="brand-name">${brandHtml(s.name)}</span>`;
+    applyTheme(s);
+    document.getElementById('brand').innerHTML = markHtml(s) + `<span class="brand-name">${brandHtml(s.name)}</span>`;
     document.getElementById('account').innerHTML = u
       ? `<div class="account"><button type="button" class="avatar-btn" data-action="account" aria-expanded="false" aria-haspopup="true">
           ${u.picture ? `<img src="${esc(u.picture)}" alt="" referrerpolicy="no-referrer">` : `<span class="avatar-fallback">${esc((u.name || '?')[0])}</span>`}<span class="sr-only">Account</span></button>
@@ -97,7 +98,7 @@
       : `<button type="button" class="btn btn-ghost btn-sm signin-top" data-action="signin">${ICON.google}<span>Sign in</span></button>`;
     const c = contactLinks(s);
     document.getElementById('footer').innerHTML = `
-      <div class="f-brand">${MARK}<div><b>${esc(s.name)}</b><span>${esc(s.tagline || '')}</span></div></div>
+      <div class="f-brand">${markHtml(s)}<div><b>${esc(s.name)}</b><span>${esc(s.tagline || '')}</span></div></div>
       <div class="f-links">
         ${c.whatsapp ? `<a href="${esc(c.whatsapp)}" target="_blank" rel="noopener noreferrer" aria-label="WhatsApp">${ICON.whatsapp}</a>` : ''}
         ${c.tiktok ? `<a href="${esc(c.tiktok)}" target="_blank" rel="noopener noreferrer" aria-label="TikTok">${ICON.tiktok}</a>` : ''}
@@ -113,7 +114,7 @@
       { x: 52, top: 150, h: 260, r: -8 }, { x: 122, top: 92, h: 300, r: -3 }, { x: 194, top: 66, h: 320, r: 0 },
       { x: 266, top: 96, h: 300, r: 3 }, { x: 312, top: 214, h: 186, r: 18 },
     ];
-    const colors = ['#a3173f', '#c23a62', '#a3173f', '#c23a62', '#a3173f'];
+    const colors = ['var(--lacquer)', 'color-mix(in srgb, var(--lacquer) 72%, #fff)', 'var(--lacquer)', 'color-mix(in srgb, var(--lacquer) 72%, #fff)', 'var(--lacquer)'];
     return `<svg viewBox="0 0 440 400" role="img" aria-label="A hand having its nails painted in cherry lacquer, one nail at a time">
       <defs>
         <linearGradient id="skin" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#7a4a31"/><stop offset=".5" stop-color="#9a6243"/><stop offset="1" stop-color="#7a4a31"/></linearGradient>
@@ -435,7 +436,8 @@
     if (matchMedia('(prefers-reduced-motion: reduce)').matches) return;
     const layer = document.createElement('div');
     layer.className = 'confetti';
-    const colors = ['#a3173f', '#e0577c', '#a77d32', '#f6c9d4', '#d8b26a'];
+    const cs = getComputedStyle(document.documentElement);
+    const colors = ['--lacquer', '--gold', '--lacquer-soft', '--tip'].map((v) => cs.getPropertyValue(v).trim() || '#a3173f');
     for (let i = 0; i < 70; i++) {
       const p = document.createElement('i');
       p.style.left = Math.random() * 100 + 'vw';

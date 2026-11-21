@@ -22,6 +22,8 @@ const ORDERS_FILE = path.join(DATA_DIR, 'orders.json');
 const PORT = Number(process.env.PORT) || 4000;
 const BASE_URL = (process.env.BASE_URL || `http://localhost:${PORT}`).replace(/\/$/, '');
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || '';
+// Optional: when set, only this password can change the brand (colours, fonts, logo). Keep it when you sell a site.
+const OWNER_PASSWORD = process.env.OWNER_PASSWORD || '';
 const GOOGLE_ID = process.env.GOOGLE_CLIENT_ID || '';
 const GOOGLE_SECRET = process.env.GOOGLE_CLIENT_SECRET || '';
 const SECRET = process.env.SESSION_SECRET || crypto.createHash('sha256').update('maridadi:' + ADMIN_PASSWORD + GOOGLE_SECRET).digest('hex');
@@ -83,17 +85,19 @@ function cookies(req) {
   return out;
 }
 const cookie = (name, value, maxAge, sameSite = 'Lax') => `${name}=${value}; HttpOnly; SameSite=${sameSite}; Path=/; Max-Age=${maxAge}${SECURE ? '; Secure' : ''}`;
-const isAdmin = (req) => verify(cookies(req).mna_admin)?.role === 'admin';
+const adminRole = (req) => verify(cookies(req).mna_admin)?.role;
+const isAdmin = (req) => ['admin', 'owner'].includes(adminRole(req));
+const canBrand = (req) => adminRole(req) === 'owner' || (!OWNER_PASSWORD && isAdmin(req));
 function currentStudent(req) {
   const p = verify(cookies(req).mna_user);
   return p ? students.find((s) => s.id === p.sid) || null : null;
 }
 
 // ---------- admin password ----------
-function passwordOk(given) {
-  if (!ADMIN_PASSWORD || typeof given !== 'string') return false;
+function same(given, real) {
+  if (!real || typeof given !== 'string') return false;
   const a = crypto.createHash('sha256').update(given).digest();
-  const b = crypto.createHash('sha256').update(ADMIN_PASSWORD).digest();
+  const b = crypto.createHash('sha256').update(real).digest();
   return crypto.timingSafeEqual(a, b);
 }
 const attempts = new Map();
@@ -295,17 +299,25 @@ async function api(req, res, url) {
     if (tooMany(ip)) return send(res, 429, { error: 'Too many tries. Wait 10 minutes and try again.' });
     if (!ADMIN_PASSWORD) return send(res, 503, { error: 'Admin login is off: set ADMIN_PASSWORD when starting the server.' });
     const { password } = await readJson(req);
-    if (!passwordOk(password)) { failed(ip); return send(res, 401, { error: 'Wrong password.' }); }
+    const role = same(password, OWNER_PASSWORD) ? 'owner' : same(password, ADMIN_PASSWORD) ? 'admin' : null;
+    if (!role) { failed(ip); return send(res, 401, { error: 'Wrong password.' }); }
     attempts.delete(ip);
-    return send(res, 200, { ok: true }, { 'Set-Cookie': cookie('mna_admin', sign({ role: 'admin', exp: Date.now() + 12 * 3600e3 }), 12 * 3600, 'Strict') });
+    return send(res, 200, { ok: true, role }, { 'Set-Cookie': cookie('mna_admin', sign({ role, exp: Date.now() + 12 * 3600e3 }), 12 * 3600, 'Strict') });
   }
   if (m === 'POST' && p === '/api/admin/logout') return send(res, 200, { ok: true }, { 'Set-Cookie': cookie('mna_admin', '', 0, 'Strict') });
   if (m === 'GET' && p === '/api/admin/me') return send(res, 200, { admin: isAdmin(req) });
   if (!p.startsWith('/api/admin/')) return send(res, 404, { error: 'Unknown request.' });
   if (!isAdmin(req)) return send(res, 401, { error: 'Please log in as admin.' });
 
-  if (m === 'GET' && p === '/api/admin/data') return send(res, 200, { ...content(), emailReady: !!process.env.SMTP_HOST, googleReady: !!(GOOGLE_ID && GOOGLE_SECRET) });
-  if (m === 'PUT' && p === '/api/admin/site') { db.site = C.cleanSite(await readJson(req)); saveContent(); return send(res, 200, db.site); }
+  if (m === 'GET' && p === '/api/admin/data') return send(res, 200, { ...content(), canBrand: canBrand(req), emailReady: !!process.env.SMTP_HOST, googleReady: !!(GOOGLE_ID && GOOGLE_SECRET) });
+  // Site details never change the brand; the brand has its own save (owner only when OWNER_PASSWORD is set).
+  if (m === 'PUT' && p === '/api/admin/site') { db.site = C.cleanSite({ ...(await readJson(req)), theme: db.site.theme, logo: db.site.logo }); saveContent(); return send(res, 200, db.site); }
+  if (m === 'PUT' && p === '/api/admin/brand') {
+    if (!canBrand(req)) return send(res, 403, { error: 'Only the owner can change the colours and logo.' });
+    const b = await readJson(req);
+    db.site = C.cleanSite({ ...db.site, theme: b.theme, logo: b.logo, name: b.name || db.site.name });
+    saveContent(); return send(res, 200, db.site);
+  }
   if (m === 'POST' && p === '/api/admin/upload') { const { dataUrl } = await readJson(req, 9_000_000); return send(res, 201, { url: saveUpload(dataUrl) }); }
 
   if ((r = p.match(new RegExp(`^/api/admin/${KIND_RE}$`))) && m === 'POST') {
@@ -360,7 +372,7 @@ async function api(req, res, url) {
     const d = await readJson(req, 20_000_000);
     if (!d || !Array.isArray(d.lessons)) return send(res, 400, { error: 'That file is not a course backup.' });
     const keep = (x) => (/^[\w-]{1,40}$/.test(x.id || '') ? x.id : newId());
-    db = { site: C.cleanSite(d.site || d.school || db.site), lessons: d.lessons.map((x) => C.cleanLesson(x, keep(x))),
+    db = { site: C.cleanSite({ ...(d.site || d.school || db.site), ...(canBrand(req) ? {} : { theme: db.site.theme, logo: db.site.logo }) }), lessons: d.lessons.map((x) => C.cleanLesson(x, keep(x))),
       designs: (d.designs || []).map((x) => C.cleanDesign(x, keep(x))), classes: (d.classes || []).map((x) => C.cleanClass(x, keep(x))),
       services: (d.services || []).map((x) => C.cleanService(x, keep(x))), products: (d.products || []).map((x) => C.cleanProduct(x, keep(x))) };
     saveContent();
@@ -380,6 +392,10 @@ http.createServer(async (req, res) => {
       const nonce = crypto.randomBytes(16).toString('hex');
       const q = new URLSearchParams({ client_id: GOOGLE_ID, redirect_uri: BASE_URL + '/auth/google/callback', response_type: 'code', scope: 'openid email profile', state: nonce, prompt: 'select_account' });
       return redirect(res, 'https://accounts.google.com/o/oauth2/v2/auth?' + q, { 'Set-Cookie': cookie('mna_state', sign({ nonce, exp: Date.now() + 600e3 }), 600) });
+    }
+    if (p === '/theme.css') {
+      res.writeHead(200, { 'Content-Type': 'text/css; charset=utf-8', 'Cache-Control': 'no-cache', ...HEADERS });
+      return res.end(C.themeCss(db.site.theme));
     }
     if (p === '/auth/google/callback') return await googleCallback(req, res, url);
     if (req.method !== 'GET' && req.method !== 'HEAD') return send(res, 405, { error: 'Method not allowed' });

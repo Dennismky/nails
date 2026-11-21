@@ -124,6 +124,7 @@
     remove: (kind, id) => http('DELETE', `/api/admin/${kind}/${encodeURIComponent(id)}`),
     order: (kind, ids) => http('PUT', `/api/admin/order/${kind}`, { ids }),
     saveSite: (s) => http('PUT', '/api/admin/site', s),
+    saveBrand: (b) => http('PUT', '/api/admin/brand', b),
     upload: async (dataUrl) => (await http('POST', '/api/admin/upload', { dataUrl })).url,
     students: () => http('GET', '/api/admin/students'),
     student: (id) => http('GET', '/api/admin/students/' + encodeURIComponent(id)),
@@ -178,7 +179,7 @@
       async adminMe() { return { admin: isAdmin() }; },
       async adminLogin() { storage.set(ADMIN, true); return { ok: true }; },
       async adminLogout() { storage.del(ADMIN); return { ok: true }; },
-      async adminData() { guard(); const d = load(); return { site: d.site, lessons: d.lessons, designs: d.designs, classes: d.classes, services: d.services || [], products: d.products || [], emailReady: false, googleReady: true }; },
+      async adminData() { guard(); const d = load(); return { site: d.site, lessons: d.lessons, designs: d.designs, classes: d.classes, services: d.services || [], products: d.products || [], canBrand: true, emailReady: false, googleReady: true }; },
       async placeOrder(items, note) {
         const d = load(); d.orders = d.orders || [];
         const out = C.buildOrder(d, me(d), items, note, 'M-' + (1001 + d.orders.length));
@@ -192,7 +193,8 @@
       async save(kind, o) { guard(); const d = load(); const i = d[kind].findIndex((x) => x.id === o.id); d[kind][i] = cleaners[kind](o, o.id); save(d); return d[kind][i]; },
       async remove(kind, id) { guard(); const d = load(); d[kind] = d[kind].filter((x) => x.id !== id); save(d); return { ok: true }; },
       async order(kind, ids) { guard(); const d = load(); const m = new Map(d[kind].map((x) => [x.id, x])); d[kind] = [...ids.map((i) => m.get(i)).filter(Boolean), ...d[kind].filter((x) => !ids.includes(x.id))]; save(d); return { ok: true }; },
-      async saveSite(s) { guard(); const d = load(); d.site = C.cleanSite(s); save(d); return d.site; },
+      async saveSite(s) { guard(); const d = load(); d.site = C.cleanSite({ ...s, theme: d.site.theme, logo: d.site.logo }); save(d); return d.site; },
+      async saveBrand(b) { guard(); const d = load(); d.site = C.cleanSite({ ...d.site, theme: b.theme, logo: b.logo, name: b.name || d.site.name }); save(d); return d.site; },
       async upload(dataUrl) { guard(); return dataUrl; },
       async students() { guard(); const d = load(); return d.students.map((s) => C.studentRow(d, s)).sort((a, b) => (b.enrolledAt || b.createdAt) - (a.enrolledAt || a.createdAt)); },
       async student(id) { guard(); const d = load(); return C.studentDetail(d, d.students.find((s) => s.id === id)); },
@@ -232,5 +234,15 @@
     return isNaN(d) ? iso : d.toLocaleDateString('en-GB', opts);
   };
 
-  window.MNA = { C, esc, inline, renderText, videoInfo, storage, contactLinks, resizeImage, api, PREVIEW, MARK, brandHtml, ICON, fmtDate };
+  // Paint the site in the client's colours and show their logo (also runs in the preview, where there is no theme.css).
+  function applyTheme(site) {
+    let tag = document.getElementById('theme-live');
+    if (!tag) { tag = document.createElement('style'); tag.id = 'theme-live'; document.head.appendChild(tag); }
+    tag.textContent = C.themeCss(site && site.theme);
+    const icon = document.querySelector('link[rel="icon"]');
+    if (icon && site && site.logo) icon.href = site.logo;
+  }
+  const markHtml = (site) => (site && site.logo ? `<img class="brand-logo" src="${esc(site.logo)}" alt="">` : MARK);
+
+  window.MNA = { applyTheme, markHtml, C, esc, inline, renderText, videoInfo, storage, contactLinks, resizeImage, api, PREVIEW, MARK, brandHtml, ICON, fmtDate };
 })();

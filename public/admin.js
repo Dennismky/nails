@@ -1,6 +1,6 @@
 // Admin panel: students (progress + unlocking), lessons, art work (photos + steps), classes, site & contact, backup.
 (function () {
-  const { C, esc, renderText, videoInfo, api, MARK, brandHtml, PREVIEW, resizeImage, fmtDate, ICON } = window.MNA;
+  const { applyTheme, markHtml, C, esc, renderText, videoInfo, api, MARK, brandHtml, PREVIEW, resizeImage, fmtDate, ICON } = window.MNA;
   const root = document.getElementById('admin-app');
   const $ = (s, el = document) => el.querySelector(s);
   let data = null, tab = 'students', orderFilter = 'new', sel = { lessons: null, designs: null, classes: null, services: null, products: null }, draft = null, dirty = false, pendingSwitch = null, textMode = 'write', studentId = null, studentQuery = '';
@@ -80,7 +80,7 @@
   const completeQs = (l) => (l.quiz || []).filter((q) => q.q && q.options.filter(Boolean).length >= 2 && q.options[q.answer]).length;
 
   // ---------- login ----------
-  function brand() { document.getElementById('brand').innerHTML = MARK + `<span class="brand-name">${brandHtml(data?.site?.name || 'Maridadi Nail Academy')}</span>`; }
+  function brand() { if (data) applyTheme(data.site); document.getElementById('brand').innerHTML = (data ? markHtml(data.site) : MARK) + `<span class="brand-name">${brandHtml(data?.site?.name || 'Maridadi Nail Academy')}</span>`; }
   function loginView() {
     document.getElementById('admin-nav').hidden = true;
     root.innerHTML = `<form class="login" id="login">
@@ -103,17 +103,17 @@
   }
 
   // ---------- layout ----------
-  const TABS = [['students', 'Students'], ['orders', 'Orders'], ['lessons', 'Lessons'], ['designs', 'Art work'], ['services', 'Services'], ['products', 'Products'], ['classes', 'Classes'], ['site', 'Site & contact'], ['backup', 'Backup']];
+  const TABS = [['students', 'Students'], ['orders', 'Orders'], ['lessons', 'Lessons'], ['designs', 'Art work'], ['services', 'Services'], ['products', 'Products'], ['classes', 'Classes'], ['site', 'Site & contact'], ['brand', 'Brand'], ['backup', 'Backup']];
   function render() {
     root.innerHTML = `<div class="wrap">
       <div class="tabs" role="tablist">${TABS.map(([k, n]) => `<button role="tab" type="button" data-tab="${k}" aria-selected="${tab === k}">${n}</button>`).join('')}</div>
       <div id="tab-body"></div></div>`;
     root.querySelectorAll('[data-tab]').forEach((b) => b.addEventListener('click', () => {
       if (dirty) { toast('Save or discard your changes first.', true); return; }
-      tab = b.dataset.tab; draft = null; studentId = null; render();
+      tab = b.dataset.tab; draft = null; studentId = null; applyTheme(data.site); render();
     }));
     if (KINDS[tab]) kindTab(tab);
-    else ({ students: studentsTab, orders: ordersTab, site: siteTab, backup: backupTab })[tab]();
+    else ({ students: studentsTab, orders: ordersTab, site: siteTab, brand: brandTab, backup: backupTab })[tab]();
   }
 
   // ---------- list + editor (lessons, designs, classes) ----------
@@ -539,6 +539,67 @@
       next.whatWeDo = ww.map((_, i) => ({ title: $(`#ww-t${i}`).value.trim(), text: $(`#ww-x${i}`).value.trim() }));
       try { data.site = await api.saveSite(next); brand(); toast('Saved'); } catch (err) { toast(err.message, true); }
     });
+  }
+
+  // ---------- brand (colours, fonts, logo) ----------
+  function brandTab() {
+    const body = $('#tab-body');
+    if (!data.canBrand) {
+      body.innerHTML = `<div class="panel"><h2>Brand</h2><p style="margin:0">The colours, fonts and logo are managed by the website owner. Contact them if you would like a change.</p></div>`;
+      return;
+    }
+    const b = { theme: { ...C.cleanTheme(data.site.theme) }, logo: data.site.logo || '', name: data.site.name };
+    const draw = () => {
+      const t = b.theme;
+      body.innerHTML = `<div class="panel wide brand-panel">
+        <div class="editor-head"><h2>Brand</h2><span class="muted small">Colours, fonts and logo for this website. Contact details are in Site & contact.</span></div>
+        <div class="brand-grid">
+          <div class="brand-controls">
+            <label class="field"><span>Business name</span><input type="text" id="b-name" value="${esc(b.name)}" maxlength="80"><small>The first word is shown in italic colour.</small></label>
+            <div class="group"><h3>Colour palette</h3>
+              <div class="swatches">${C.THEMES.map((p) => `<button type="button" class="swatch ${p.accent === t.accent && p.detail === t.detail ? 'on' : ''}" data-accent="${p.accent}" data-detail="${p.detail}">
+                <span class="sw" style="background:linear-gradient(135deg, ${p.accent} 0 60%, ${p.detail} 60%)"></span><span>${p.name}</span></button>`).join('')}</div>
+              <div class="grid2">
+                <label class="field"><span>Main colour</span><span class="color-row"><input type="color" id="b-accent" value="${t.accent}"><input type="text" class="input" id="b-accent-hex" value="${t.accent}" maxlength="7" aria-label="Main colour code"></span><small>Buttons, links, prices.</small></label>
+                <label class="field"><span>Detail colour</span><span class="color-row"><input type="color" id="b-detail" value="${t.detail}"><input type="text" class="input" id="b-detail-hex" value="${t.detail}" maxlength="7" aria-label="Detail colour code"></span><small>Small labels and accents.</small></label>
+              </div></div>
+            <div class="group"><h3>Fonts</h3>
+              <div class="fonts">${Object.entries(C.FONTS).map(([k, f]) => `<button type="button" class="font-card ${t.font === k ? 'on' : ''}" data-font="${k}"><b style="font-family:${esc(f.display)}">Aa</b><span>${f.name}</span></button>`).join('')}</div></div>
+            <div class="group"><h3>Logo</h3>
+              <div class="photo-edit"><div class="photo-box logo-box" id="logo-box">${b.logo ? `<img src="${esc(b.logo)}" alt="">` : MARK}</div>
+                <div class="photo-actions"><p class="muted small">A PNG with a clear background works best. Without a logo, the polish-drop mark shows in the main colour.</p>
+                  <div class="row"><label class="btn btn-primary btn-sm" for="b-logo">${b.logo ? 'Replace logo' : 'Upload logo'}</label><input type="file" id="b-logo" accept="image/png,image/jpeg,image/webp" hidden>${b.logo ? '<button type="button" class="btn btn-ghost btn-sm" id="b-logo-remove">Remove</button>' : ''}</div>
+                  <p class="err" id="b-logo-err"></p></div></div></div>
+          </div>
+          <div class="brand-preview" aria-label="Preview">
+            <div class="bp-top">${b.logo ? `<img class="brand-logo" src="${esc(b.logo)}" alt="">` : MARK}<span class="brand-name">${brandHtml(b.name)}</span></div>
+            <div class="bp-body"><div class="eyebrow">Preview</div><h3>Every hand becomes a <em>canvas.</em></h3><p>This is how buttons, labels and cards look with these colours.</p>
+              <div class="row"><span class="btn btn-primary btn-sm">Book appointment</span><span class="btn btn-ghost btn-sm">See classes</span></div>
+              <div class="bp-card"><span class="status soon">Starting soon</span><b>Beginner class</b><span class="svc-price">KSh 25,000</span></div></div>
+          </div>
+        </div>
+        <div class="row"><button type="button" class="btn btn-primary" id="b-save">Save brand</button><span class="muted small" id="b-state"></span></div>
+      </div>`;
+      applyTheme({ theme: b.theme, logo: b.logo });
+      const changed = () => { $('#b-state').textContent = 'Not saved yet. The admin is showing the new look.'; };
+      body.querySelectorAll('.swatch').forEach((x) => x.addEventListener('click', () => { b.theme.accent = x.dataset.accent; b.theme.detail = x.dataset.detail; draw(); changed(); }));
+      body.querySelectorAll('.font-card').forEach((x) => x.addEventListener('click', () => { b.theme.font = x.dataset.font; draw(); changed(); }));
+      for (const k of ['accent', 'detail']) {
+        $(`#b-${k}`).addEventListener('change', (e) => { b.theme[k] = e.target.value; draw(); changed(); });
+        $(`#b-${k}-hex`).addEventListener('change', (e) => { if (/^#[0-9a-f]{6}$/i.test(e.target.value.trim())) { b.theme[k] = e.target.value.trim().toLowerCase(); draw(); changed(); } else toast('Use a colour code like #a3173f', true); });
+      }
+      $('#b-name').addEventListener('input', (e) => { b.name = e.target.value; body.querySelector('.bp-top .brand-name').innerHTML = brandHtml(b.name); changed(); });
+      $('#b-logo').addEventListener('change', async (e) => {
+        const file = e.target.files[0]; if (!file) return;
+        try { b.logo = await api.upload(await resizeImage(file, 400, 0.9)); draw(); changed(); } catch (err) { $('#b-logo-err').textContent = err.message; }
+      });
+      $('#b-logo-remove')?.addEventListener('click', () => { b.logo = ''; draw(); changed(); });
+      $('#b-save').addEventListener('click', async () => {
+        try { data.site = await api.saveBrand(b); brand(); toast('Brand saved. The website now uses it.'); $('#b-state').textContent = ''; }
+        catch (err) { toast(err.message, true); }
+      });
+    };
+    draw();
   }
 
   // ---------- backup & setup ----------
