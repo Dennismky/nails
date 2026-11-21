@@ -273,6 +273,7 @@ body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-a
 .step-card.locked .num { background: var(--surface-2); color: var(--ink-soft); }
 .step-card.locked .sc-body { padding-right: 40px; }
 .sc-body { min-width: 0; }
+.contact-admin { color: var(--lacquer) !important; font-weight: 700; }
 .chip.is-locked { opacity: .65; }
 .chip .dot svg { width: 14px; height: 14px; }
 

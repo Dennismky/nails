@@ -380,7 +380,7 @@
     try { s = await api.student(id); } catch (e) { body.innerHTML = `<p class="err">${esc(e.message)}</p>`; return; }
     const wa = C.waNumber(s.phone);
     const sm = s.summary;
-    const toggle = (kind, x) => `<label class="tg ${x.free ? 'is-free' : ''}"><input type="checkbox" data-kind="${kind}" data-id="${esc(x.id)}" ${x.unlocked ? 'checked' : ''} ${x.free || s.unlockAll ? 'disabled' : ''}><span class="track" aria-hidden="true"></span><span class="sr-only">Unlock ${esc(x.title)}</span></label>`;
+    const toggle = (kind, x) => `<label class="tg ${x.free ? 'is-free' : ''}"><input type="checkbox" data-kind="${kind}" data-id="${esc(x.id)}" ${x.unlocked ? 'checked' : ''} ${x.free ? 'disabled' : ''}><span class="track" aria-hidden="true"></span><span class="sr-only">Unlock ${esc(x.title)}</span></label>`;
     body.innerHTML = `<div class="panel wide">
       <button type="button" class="back-btn" id="back">← All students</button>
       <div class="stu-head">
@@ -394,29 +394,33 @@
       </div>
       <div class="stat-row"><div><b>${sm.done}/${sm.total}</b><span>steps done</span></div><div><b>${sm.points}/${sm.maxPoints}</b><span>quiz points</span></div><div><b>${s.lessons.filter((l) => l.unlocked).length}</b><span>lessons open</span></div><div><b>${s.designs.filter((d) => d.unlocked).length}</b><span>designs open</span></div></div>
 
-      <div class="unlock-all"><label class="tg"><input type="checkbox" id="unlock-all" ${s.unlockAll ? 'checked' : ''}><span class="track" aria-hidden="true"></span></label>
-        <div><b>Unlock everything</b><small>Open every lesson and design for this student, including ones you add later.</small></div></div>
+      ${(() => {
+        const steps = s.lessons.filter((l) => l.published);
+        const next = steps.find((l) => !l.unlocked);
+        const last = [...steps].reverse().find((l) => l.unlocked && !l.free);
+        return `<div class="group"><div class="editor-head"><h3>Lessons</h3><span class="muted small">Unlock one step at a time, in order.</span></div>
+        <div class="next-step">${next
+          ? `<div><small>Next step</small><b>${steps.indexOf(next) + 1}. ${esc(next.title)}</b></div><button type="button" class="btn btn-primary" id="unlock-next" data-id="${esc(next.id)}">Unlock next step</button>`
+          : '<div><b>Every lesson is open for this student.</b></div>'}
+          ${last ? `<button type="button" class="btn btn-ghost btn-sm" id="undo-last" data-id="${esc(last.id)}">Undo last unlock</button>` : ''}</div>
+        <div class="unlock-list">${steps.map((l, i) => `<div class="ul-row ${l === next ? 'is-next' : ''}"><span class="n">${i + 1}</span><span class="t">${esc(l.title)}</span>
+          <span class="sc">${l.progress ? `<span class="score-pill ${l.progress.best === 5 ? 'full' : ''}">${l.progress.best}/5</span><small>${l.progress.attempts} ${l.progress.attempts === 1 ? 'try' : 'tries'}</small>` : '<small class="muted">Not started</small>'}</span>
+          <span class="state-pill ${l.free ? 'free' : l.unlocked ? 'open' : l === next ? 'next' : ''}">${l.free ? 'Free' : l.unlocked ? 'Open' : l === next ? 'Next' : 'Locked'}</span></div>`).join('')}</div></div>`;
+      })()}
 
-      <div class="group"><div class="editor-head"><h3>Lessons</h3><span class="row"><button type="button" class="btn btn-ghost btn-sm" data-bulk="lessons:on" ${s.unlockAll ? 'disabled' : ''}>Unlock all lessons</button><button type="button" class="btn btn-ghost btn-sm" data-bulk="lessons:off" ${s.unlockAll ? 'disabled' : ''}>Lock all</button></span></div>
-        <div class="unlock-list">${s.lessons.map((l, i) => `<div class="ul-row ${l.published ? '' : 'dim'}"><span class="n">${i + 1}</span><span class="t">${esc(l.title)}${l.free ? ' <span class="badge free">Free</span>' : ''}${l.published ? '' : ' <span class="badge">Draft</span>'}</span>
-          <span class="sc">${l.progress ? `<span class="score-pill ${l.progress.best === 5 ? 'full' : ''}">${l.progress.best}/5</span><small>${l.progress.attempts} ${l.progress.attempts === 1 ? 'try' : 'tries'}</small>` : '<small class="muted">Not started</small>'}</span>${toggle('lessons', l)}</div>`).join('')}</div></div>
-
-      <div class="group"><div class="editor-head"><h3>Art work</h3><span class="row"><button type="button" class="btn btn-ghost btn-sm" data-bulk="designs:on" ${s.unlockAll ? 'disabled' : ''}>Unlock all designs</button><button type="button" class="btn btn-ghost btn-sm" data-bulk="designs:off" ${s.unlockAll ? 'disabled' : ''}>Lock all</button></span></div>
+      <div class="group"><div class="editor-head"><h3>Art work</h3></div>
         <div class="unlock-list">${s.designs.map((d) => `<div class="ul-row ${d.published ? '' : 'dim'}"><span class="n">•</span><span class="t">${esc(d.title)}${d.free ? ' <span class="badge free">Free</span>' : ''}</span><span class="sc"></span>${toggle('designs', d)}</div>`).join('') || '<p class="muted">No designs yet.</p>'}</div></div>
 
       <div class="group"><h3>Remove student</h3><p class="muted small" style="margin:0">Deletes their account and progress. If they sign in again they start fresh.</p><div class="row"><button type="button" class="btn btn-danger btn-sm" id="del-stu">Delete student</button></div></div>
     </div>`;
     $('#back').addEventListener('click', () => { studentId = null; studentsTab(); });
-    const patch = async (p, msg) => { try { await api.saveStudent(id, p); toast(msg); studentDetail(id); } catch (e) { toast(e.message, true); } };
-    $('#unlock-all').addEventListener('change', (e) => patch({ unlockAll: e.target.checked }, e.target.checked ? 'Everything unlocked for ' + s.name : 'Unlock-everything switched off'));
+    const patch = async (p, msg) => { try { await api.saveStudent(id, { unlockAll: false, ...p }); toast(msg); studentDetail(id); } catch (e) { toast(e.message, true); } };
+    const openLessons = () => s.lessons.filter((l) => l.unlocked && !l.free).map((l) => l.id);
+    $('#unlock-next')?.addEventListener('click', (e) => patch({ unlocked: { lessons: [...openLessons(), e.target.dataset.id] } }, 'Next step unlocked for ' + s.name));
+    $('#undo-last')?.addEventListener('click', (e) => patch({ unlocked: { lessons: openLessons().filter((x) => x !== e.target.dataset.id) } }, 'Last unlock undone'));
     body.querySelectorAll('.tg input[data-kind]').forEach((el) => el.addEventListener('change', () => {
-      const kind = el.dataset.kind;
-      const ids = s[kind].filter((x) => !x.free).filter((x) => (x.id === el.dataset.id ? el.checked : x.unlocked)).map((x) => x.id);
-      patch({ unlocked: { [kind]: ids } }, el.checked ? 'Unlocked' : 'Locked');
-    }));
-    body.querySelectorAll('[data-bulk]').forEach((b) => b.addEventListener('click', () => {
-      const [kind, on] = b.dataset.bulk.split(':');
-      patch({ unlocked: { [kind]: on === 'on' ? s[kind].filter((x) => !x.free).map((x) => x.id) : [] } }, on === 'on' ? 'All unlocked' : 'All locked (free ones stay open)');
+      const ids = s.designs.filter((x) => !x.free).filter((x) => (x.id === el.dataset.id ? el.checked : x.unlocked)).map((x) => x.id);
+      patch({ unlocked: { designs: ids } }, el.checked ? 'Design unlocked' : 'Design locked');
     }));
     armed($('#del-stu'), 'Click again to delete', async () => {
       try { await api.removeStudent(id); studentId = null; toast('Student deleted'); studentsTab(); } catch (e) { toast(e.message, true); }

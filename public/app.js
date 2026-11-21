@@ -41,25 +41,19 @@
 
   function lockPopup(title, kind = 'lesson') {
     const u = me();
-    const what = kind === 'design' ? 'design' : 'lesson';
-    if (!u) {
-      openModal(`<div class="modal-lock">${ICON.lock}</div>
-        <h2 id="modal-title">Sign in to start learning</h2>
-        <p>Sign in with your Google account to open <b>Lesson 1 for free</b>. To unlock “${esc(title)}” and the rest, contact us after you sign in.</p>
-        <div class="modal-actions">${googleButton()}</div>
-        <div class="modal-or"><span>or talk to us</span></div>
-        <div class="modal-actions">${contactButtons('Hello, I would like to join the nail course.', { compact: true })}</div>`);
-    } else if (!u.enrolled) {
+    if (u && !u.enrolled) {
       openModal(`<div class="modal-lock">${ICON.lock}</div>
         <h2 id="modal-title">One step left</h2>
         <p>Finish enrolling with your phone number, and Lesson 1 opens straight away.</p>
         <div class="modal-actions"><a class="btn btn-primary" href="#enroll" data-close>Finish enrolling</a></div>`);
-    } else {
-      openModal(`<div class="modal-lock">${ICON.lock}</div>
-        <h2 id="modal-title">This ${what} is locked</h2>
-        <p>Contact the admin to unlock “${esc(title)}”. Send a message and we will open it for you.</p>
-        <div class="modal-actions stack">${contactButtons(`Hello, I am ${u.name} (${u.email}). I would like to unlock "${title}".`) || '<p class="muted">Contact details will be added soon.</p>'}</div>`);
+      return;
     }
+    const msg = u ? `Hello, I am ${u.name} (${u.email}). I would like to unlock "${title}".` : `Hello, I would like to unlock "${title}" in the nail course.`;
+    openModal(`<div class="modal-lock">${ICON.lock}</div>
+      <h2 id="modal-title">Contact admin</h2>
+      <p>To open “${esc(title)}”, contact the admin.</p>
+      <div class="modal-actions stack">${contactButtons(msg) || '<p class="muted">Contact details will be added soon.</p>'}</div>
+      ${u ? '' : `<div class="modal-or"><span>new here?</span></div><div class="modal-actions">${googleButton('Sign in for Lesson 1 free')}</div>`}`);
   }
 
   document.addEventListener('click', async (e) => {
@@ -220,7 +214,7 @@
     return `<a class="step-card ${l.locked ? 'locked' : ''} ${pr ? 'done' : ''}" href="${l.locked ? '#' : '#lesson-' + esc(l.id)}" ${l.locked ? `data-locked="lesson" data-title="${esc(l.title)}"` : ''}>
       <span class="num">${i + 1}</span>
       <span class="sc-body"><h3>${esc(l.title)}</h3>
-        ${l.locked ? `<p class="muted">${l.free ? 'Free when you sign in' : 'Locked'}</p>` : `<p>${esc(l.summary)}</p>`}
+        ${l.locked ? `<p class="contact-admin">${l.free && !me() ? 'Free: sign in to open' : 'Contact admin'}</p>` : `<p>${esc(l.summary)}</p>`}
         <span class="meta">${l.duration ? `<span>${esc(l.duration)}</span>` : ''}<span>5 questions</span>${pr ? `<span class="score-pill ${pr.best === 5 ? 'full' : ''}">${pr.best}/5</span>` : ''}${l.free && !l.locked ? '<span class="free-pill">Free</span>' : ''}</span>
       </span>
       ${l.locked ? lockBadge : ''}
@@ -255,7 +249,7 @@
         <div class="art-grid">${cat.designs.map((d) => `
           <a class="art-card ${d.locked ? 'locked' : ''}" href="${d.locked ? '#' : '#design-' + esc(d.id)}" ${d.locked ? `data-locked="design" data-title="${esc(d.title)}"` : ''}>
             <span class="art-photo">${d.image ? `<img src="${esc(d.image)}" alt="${esc(d.title)}" loading="lazy">` : '<span class="photo-soon">Photo coming soon</span>'}${d.locked ? lockBadge : ''}</span>
-            <span class="art-info"><h3>${esc(d.title)}</h3><span class="meta">${d.level ? `<span>${esc(d.level)}</span>` : ''}${d.free && !d.locked ? '<span class="free-pill">Free</span>' : ''}${d.locked ? '<span>Locked</span>' : ''}</span></span>
+            <span class="art-info"><h3>${esc(d.title)}</h3><span class="meta">${d.level ? `<span>${esc(d.level)}</span>` : ''}${d.free && !d.locked ? '<span class="free-pill">Free</span>' : ''}${d.locked ? '<span class="contact-admin">Contact admin</span>' : ''}</span></span>
           </a>`).join('') || '<p class="muted">New designs are coming soon.</p>'}</div>
       </div></section>`;
   }
@@ -284,7 +278,7 @@
     const box = document.getElementById('lp') || app;
     if (e.status === 403) {
       box.innerHTML = `<section class="section"><div class="wrap"><div class="locked-page">${ICON.lock}<h1>${esc(e.data.title || 'Locked')}</h1>
-        <p>This ${kind === 'design' ? 'design' : 'lesson'} is locked.</p><div class="row-c"><button class="btn btn-primary" type="button" data-locked="${kind}" data-title="${esc(e.data.title || '')}">How to unlock</button><a class="btn btn-ghost" href="${back}">${backLabel}</a></div></div></div></section>`;
+        <p>Contact admin to open this ${kind === 'design' ? 'design' : 'lesson'}.</p><div class="row-c"><button class="btn btn-primary" type="button" data-locked="${kind}" data-title="${esc(e.data.title || '')}">Contact admin</button><a class="btn btn-ghost" href="${back}">${backLabel}</a></div></div></div></section>`;
       lockPopup(e.data.title || '', kind);
     } else {
       box.innerHTML = `<div class="empty"><h2>That page is not here</h2><p><a href="${back}">${backLabel}</a></p></div>`;
@@ -338,7 +332,7 @@
         ${l.quiz.length ? quizHtml(l.quiz) : ''}
         <nav class="pager">
           ${prev ? navLink(prev, 'prev', '← Previous step') : '<span></span>'}
-          ${next ? navLink(next, 'next', next.locked ? 'Next step · locked' : 'Next step →') : '<span></span>'}
+          ${next ? navLink(next, 'next', next.locked ? 'Next step · contact admin' : 'Next step →') : '<span></span>'}
         </nav>
       </div></div></article>`;
     if (l.quiz.length) wireQuiz(l, next);
@@ -404,7 +398,7 @@
       document.getElementById('retry').hidden = false;
       const go = document.getElementById('go-next');
       if (next && !next.locked) { go.hidden = false; go.href = '#lesson-' + next.id; go.textContent = 'Next step: ' + next.title; }
-      else if (next) { go.hidden = false; go.href = '#'; go.dataset.locked = 'lesson'; go.dataset.title = next.title; go.textContent = 'Unlock the next step'; }
+      else if (next) { go.hidden = false; go.href = '#'; go.dataset.locked = 'lesson'; go.dataset.title = next.title; go.textContent = 'Contact admin for the next step'; }
       const chip = document.querySelector('.chip.current');
       if (chip) { chip.classList.add('done'); chip.querySelector('.dot').textContent = '✓'; chip.querySelector('small')?.remove(); chip.insertAdjacentHTML('beforeend', `<small>${out.progress.best}/5</small>`); }
       if (out.score === out.total) confetti();
@@ -523,7 +517,7 @@
         </div>
         <div><h2 class="group-title">Your scores</h2>
           <div class="score-list">${cat.lessons.map((l, i) => `<div class="score-row ${l.locked ? 'locked' : ''}"><span class="n">${i + 1}</span><span class="t">${esc(l.title)}</span>
-            ${l.locked ? `<button type="button" class="link-btn" data-locked="lesson" data-title="${esc(l.title)}">${ICON.lock}<span>Locked</span></button>` : l.progress ? `<span class="score-pill ${l.progress.best === 5 ? 'full' : ''}">${l.progress.best}/5</span>` : `<a href="#lesson-${esc(l.id)}">Start</a>`}</div>`).join('')}</div>
+            ${l.locked ? `<button type="button" class="link-btn" data-locked="lesson" data-title="${esc(l.title)}">${ICON.lock}<span>Contact admin</span></button>` : l.progress ? `<span class="score-pill ${l.progress.best === 5 ? 'full' : ''}">${l.progress.best}/5</span>` : `<a href="#lesson-${esc(l.id)}">Start</a>`}</div>`).join('')}</div>
         </div>
       </div></section>`;
   }
