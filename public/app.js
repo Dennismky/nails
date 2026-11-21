@@ -15,7 +15,7 @@
   function contactButtons(message, { compact } = {}) {
     const c = contactLinks(site(), message);
     const out = [];
-    if (c.whatsapp) out.push(`<a class="btn btn-wa ${compact ? 'btn-sm' : ''}" href="${esc(c.whatsapp)}" target="_blank" rel="noopener noreferrer">${ICON.whatsapp}<span>WhatsApp ${esc(c.whatsappText)}</span></a>`);
+    if (c.whatsapp) out.push(`<a class="btn btn-wa ${compact ? 'btn-sm' : ''}" href="${esc(c.whatsapp)}" target="_blank" rel="noopener noreferrer">${ICON.whatsapp}<span>Chat on WhatsApp</span></a>`);
     if (c.email) out.push(`<a class="btn btn-ghost ${compact ? 'btn-sm' : ''}" href="mailto:${esc(c.email)}">${ICON.mail}<span>${esc(c.email)}</span></a>`);
     return out.join('');
   }
@@ -69,6 +69,15 @@
     const a = t.dataset.action;
     if (a === 'signin') { e.preventDefault(); t.disabled = true; await api.signIn(); }
     if (a === 'signout') { e.preventDefault(); await api.signOut(); await reload(); location.hash === '#home' ? route() : (location.hash = 'home'); }
+    if (a === 'reveal-phone') {
+      const num = site().phone || '';
+      const link = document.createElement('a');
+      link.className = 'contact-card'; link.href = 'tel:' + num.replace(/\s/g, '');
+      link.innerHTML = t.innerHTML;
+      link.querySelector('b').textContent = num;
+      link.querySelector('.cc-cta').textContent = 'Tap to call';
+      t.replaceWith(link); link.focus();
+    }
     if (a === 'menu') { const open = document.body.classList.toggle('menu-open'); t.setAttribute('aria-expanded', open); }
     if (a === 'account') { const m = document.getElementById('account-menu'); m.hidden = !m.hidden; t.setAttribute('aria-expanded', !m.hidden); }
   });
@@ -452,9 +461,9 @@
   function contactView() {
     const s = site(), c = contactLinks(s, 'Hello, I have a question about the nail academy.');
     const rows = [
-      c.whatsapp && ['whatsapp', 'WhatsApp', c.whatsappText, c.whatsapp, 'Chat with us'],
+      c.whatsapp && ['whatsapp', 'WhatsApp', 'Chat with us', c.whatsapp, 'Opens WhatsApp'],
       c.email && ['mail', 'Email', c.email, 'mailto:' + c.email, 'Send an email'],
-      c.phone && ['phone', 'Phone', c.phone, 'tel:' + c.phone.replace(/\s/g, ''), 'Call us'],
+      c.phone && ['phone', 'Phone', 'Call us', 'reveal', 'Tap to show number'],
       c.tiktok && ['tiktok', 'TikTok', c.tiktokText, c.tiktok, 'Watch our videos'],
       c.instagram && ['instagram', 'Instagram', c.instagramText, c.instagram, 'See our work'],
       s.location && ['pin', 'Studio', s.location, '', s.hours || ''],
@@ -462,6 +471,8 @@
     app.innerHTML = pageHead('Contact us', 'Let’s talk nails', 'Ask about classes, fees or the online course. WhatsApp is the fastest way to reach us.') + `
       <section class="section"><div class="wrap">
         <div class="contact-grid">${rows.map(([ic, label, value, href, cta]) => {
+          if (href === 'reveal') // number stays hidden until tapped; the next tap calls it
+            return `<button type="button" class="contact-card reveal" data-action="reveal-phone"><span class="cc-icon">${ICON[ic]}</span><span class="cc-body"><small>${label}</small><b>${esc(value)}</b><span class="cc-cta">${esc(cta)}</span></span></button>`;
           const open = href ? `a href="${esc(href)}" ${/^https?:/.test(href) ? 'target="_blank" rel="noopener noreferrer"' : ''}` : 'div';
           return `<${open} class="contact-card ${ic === 'whatsapp' ? 'primary' : ''}"><span class="cc-icon">${ICON[ic]}</span><span class="cc-body"><small>${label}</small><b>${esc(value)}</b>${cta ? `<span class="cc-cta">${esc(cta)}</span>` : ''}</span></${href ? 'a' : 'div'}>`;
         }).join('') || '<p class="muted">Contact details will be added soon.</p>'}</div>
