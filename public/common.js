@@ -139,7 +139,7 @@
 
   // Preview: the same routes, worked out in this browser with the same rules (core.js).
   function previewApi() {
-    const KEY = 'mna_preview_v2', ME = 'mna_preview_me', ADMIN = 'mna_preview_admin';
+    const KEY = 'elan_preview_v1', ME = 'mna_preview_me', ADMIN = 'mna_preview_admin';
     const load = () => storage.get(KEY, null) || JSON.parse(JSON.stringify(window.__SEED__));
     const save = (d) => { if (!storage.set(KEY, d)) throw new Error('This browser is out of space for the preview. Remove a photo and try again.'); };
     const me = (d) => d.students.find((s) => s.id === storage.get(ME, null)) || null;
@@ -193,8 +193,8 @@
       async save(kind, o) { guard(); const d = load(); const i = d[kind].findIndex((x) => x.id === o.id); d[kind][i] = cleaners[kind](o, o.id); save(d); return d[kind][i]; },
       async remove(kind, id) { guard(); const d = load(); d[kind] = d[kind].filter((x) => x.id !== id); save(d); return { ok: true }; },
       async order(kind, ids) { guard(); const d = load(); const m = new Map(d[kind].map((x) => [x.id, x])); d[kind] = [...ids.map((i) => m.get(i)).filter(Boolean), ...d[kind].filter((x) => !ids.includes(x.id))]; save(d); return { ok: true }; },
-      async saveSite(s) { guard(); const d = load(); d.site = C.cleanSite({ ...s, theme: d.site.theme, logo: d.site.logo }); save(d); return d.site; },
-      async saveBrand(b) { guard(); const d = load(); d.site = C.cleanSite({ ...d.site, theme: b.theme, logo: b.logo, name: b.name || d.site.name }); save(d); return d.site; },
+      async saveSite(s) { guard(); const d = load(); d.site = C.cleanSite({ ...s, theme: d.site.theme, logo: d.site.logo, heroImage: d.site.heroImage }); save(d); return d.site; },
+      async saveBrand(b) { guard(); const d = load(); d.site = C.cleanSite({ ...d.site, theme: b.theme, logo: b.logo, heroImage: b.heroImage, name: b.name || d.site.name }); save(d); return d.site; },
       async upload(dataUrl) { guard(); return dataUrl; },
       async students() { guard(); const d = load(); return d.students.map((s) => C.studentRow(d, s)).sort((a, b) => (b.enrolledAt || b.createdAt) - (a.enrolledAt || a.createdAt)); },
       async student(id) { guard(); const d = load(); return C.studentDetail(d, d.students.find((s) => s.id === id)); },
@@ -213,7 +213,8 @@
   const api = PREVIEW ? previewApi() : serverApi;
 
   const MARK = '<svg class="brand-mark" viewBox="0 0 32 32" aria-hidden="true"><defs><linearGradient id="mk" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="var(--lacquer)"/><stop offset="1" stop-color="var(--gold)"/></linearGradient></defs><path d="M16 2c6 0 10 5 10 11v9a8 8 0 0 1-8 8h-4a8 8 0 0 1-8-8v-9C6 7 10 2 16 2z" fill="url(#mk)"/><path d="M11 8c1.5-2 3-2.6 4.5-2.8" stroke="#fff" stroke-opacity=".7" stroke-width="2" fill="none" stroke-linecap="round"/></svg>';
-  const brandHtml = (name) => { const [first, ...rest] = String(name || '').split(' '); return `<em>${esc(first)}</em> ${esc(rest.join(' '))}`; };
+  // "Élan Beauty" -> script "Élan" over wide-spaced "BEAUTY", like the logo.
+  const brandHtml = (name) => { const [first, ...rest] = String(name || '').trim().split(/\s+/); return `<span class="wordmark"><span class="wm-script">${esc(first)}</span>${rest.length ? `<span class="wm-caps">${esc(rest.join(' '))}</span>` : ''}</span>`; };
   const ICON = {
     lock: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 10V7a5 5 0 0 1 10 0v3" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><rect x="4.5" y="10" width="15" height="11" rx="3" fill="none" stroke="currentColor" stroke-width="1.8"/><circle cx="12" cy="15.5" r="1.6" fill="currentColor"/></svg>',
     whatsapp: '<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 2a10 10 0 0 0-8.6 15.1L2 22l5-1.3A10 10 0 1 0 12 2zm0 18.2a8.2 8.2 0 0 1-4.2-1.2l-.3-.2-3 .8.8-2.9-.2-.3A8.2 8.2 0 1 1 12 20.2zm4.5-6.1c-.2-.1-1.5-.7-1.7-.8s-.4-.1-.6.1-.7.8-.8 1-.3.2-.5.1a6.7 6.7 0 0 1-3.3-2.9c-.3-.4.2-.4.7-1.3.1-.2 0-.3 0-.4l-.8-1.8c-.2-.5-.4-.4-.6-.4h-.5a1 1 0 0 0-.7.3 3 3 0 0 0-.9 2.2 5.2 5.2 0 0 0 1.1 2.7 11.8 11.8 0 0 0 4.5 4c1.7.7 2.3.8 3.2.6a2.7 2.7 0 0 0 1.8-1.2 2.2 2.2 0 0 0 .1-1.3c0-.1-.2-.2-.5-.3z"/></svg>',
@@ -242,7 +243,7 @@
     const icon = document.querySelector('link[rel="icon"]');
     if (icon && site && site.logo) icon.href = site.logo;
   }
-  const markHtml = (site) => (site && site.logo ? `<img class="brand-logo" src="${esc(site.logo)}" alt="">` : MARK);
+  const markHtml = (site) => (site && site.logo ? `<img class="brand-logo" src="${esc(site.logo)}" alt="">` : '');
 
   window.MNA = { applyTheme, markHtml, C, esc, inline, renderText, videoInfo, storage, contactLinks, resizeImage, api, PREVIEW, MARK, brandHtml, ICON, fmtDate };
 })();

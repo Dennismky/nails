@@ -12,7 +12,7 @@
   }
   function cleanImage(v) {
     const s = typeof v === 'string' ? v.trim() : '';
-    if (/^\/uploads\/[a-z0-9]{8,40}\.(jpg|png|webp)$/.test(s)) return s;
+    if (/^\/uploads\/[a-z0-9]{8,40}\.(jpg|png|webp)$/.test(s) || /^\/img\/[a-z0-9-]{1,40}\.(jpg|png|webp|svg)$/.test(s)) return s;
     if (s.length < 3_000_000 && /^data:image\/(jpeg|png|webp);base64,[A-Za-z0-9+/=]+$/.test(s)) return s; // preview only
     return cleanUrl(s);
   }
@@ -53,6 +53,7 @@
   });
   // ---------- brand (colours, fonts, logo) ----------
   const THEMES = [
+    { id: 'elan', name: 'Élan noir', accent: '#111111', detail: '#8a8a8a' },
     { id: 'cherry', name: 'Cherry lacquer', accent: '#a3173f', detail: '#a77d32' },
     { id: 'rose', name: 'Rose gold', accent: '#9e4a5a', detail: '#b8865b' },
     { id: 'emerald', name: 'Emerald', accent: '#0f6b4f', detail: '#b08d3c' },
@@ -63,13 +64,14 @@
     { id: 'noir', name: 'Noir', accent: '#1f1a1c', detail: '#b8925a' },
   ];
   const FONTS = {
+    elan: { name: 'Élan', display: '"Cormorant Garamond", Garamond, Georgia, serif', body: '"Jost", system-ui, sans-serif', script: '"Great Vibes", "Snell Roundhand", cursive', css: 'Cormorant+Garamond:ital,wght@0,500;0,600;0,700;1,500;1,600&family=Jost:wght@300;400;500;600&family=Great+Vibes' },
     elegant: { name: 'Elegant', display: '"Bodoni Moda", "Didot", Georgia, serif', body: '"Figtree", system-ui, sans-serif', css: 'Bodoni+Moda:ital,opsz,wght@0,6..96,500..800;1,6..96,500..800&family=Figtree:wght@400;500;600;700;800' },
     modern: { name: 'Modern', display: '"DM Serif Display", Georgia, serif', body: '"DM Sans", system-ui, sans-serif', css: 'DM+Serif+Display:ital@0;1&family=DM+Sans:wght@400;500;600;700;800' },
     classic: { name: 'Classic', display: '"Cormorant Garamond", Garamond, Georgia, serif', body: '"Lato", system-ui, sans-serif', css: 'Cormorant+Garamond:ital,wght@0,500;0,600;0,700;1,600&family=Lato:wght@400;700;900' },
     clean: { name: 'Clean', display: '"Poppins", system-ui, sans-serif', body: '"Poppins", system-ui, sans-serif', css: 'Poppins:ital,wght@0,400;0,500;0,600;0,700;0,800;1,600' },
   };
   const hex = (v, d) => (/^#[0-9a-f]{6}$/i.test(v || '') ? v.toLowerCase() : d);
-  const cleanTheme = (t = {}) => ({ accent: hex(t.accent, '#a3173f'), detail: hex(t.detail, '#a77d32'), font: FONTS[t.font] ? t.font : 'elegant' });
+  const cleanTheme = (t = {}) => ({ accent: hex(t.accent, '#111111'), detail: hex(t.detail, '#8a8a8a'), font: FONTS[t.font] ? t.font : 'elan' });
   function luminance(h) {
     const c = [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16) / 255).map((v) => (v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4));
     return 0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2];
@@ -80,18 +82,20 @@
     const A = t.accent, D = t.detail, f = FONTS[t.font];
     const mix = (c, pct, base) => `color-mix(in srgb, ${c} ${pct}%, ${base})`;
     const onA = luminance(A) > 0.35 ? '#1a1416' : '#ffffff';
+    const nearBlack = luminance(A) < 0.02; // black brands get white buttons in dark mode
     const dark = `--bg: ${mix(A, 7, '#0e0b0c')}; --surface: ${mix(A, 9, '#171314')}; --surface-2: ${mix(A, 14, '#1d1819')}; --ink: ${mix(A, 6, '#f7f2f3')}; --ink-soft: ${mix(A, 22, '#b9b0b3')};
-      --line: ${mix(A, 22, '#2a2426')}; --lacquer: ${mix(A, 62, '#ffffff')}; --lacquer-ink: #140f11; --lacquer-soft: ${mix(A, 26, '#151112')}; --gold: ${mix(D, 70, '#ffffff')}; --tip: ${mix(D, 16, '#141011')}; color-scheme: dark;`;
+      --line: ${mix(A, 22, '#2a2426')}; --lacquer: ${nearBlack ? '#f4f4f4' : mix(A, 62, '#ffffff')}; --lacquer-ink: #111111; --lacquer-soft: ${mix(A, 26, '#151112')}; --gold: ${mix(D, 70, '#ffffff')}; --tip: ${mix(D, 16, '#141011')}; color-scheme: dark;`;
     return `${f.css ? `@import url("https://fonts.googleapis.com/css2?family=${f.css}&display=swap");` : ''}
 :root { --lacquer: ${A}; --lacquer-ink: ${onA}; --lacquer-soft: ${mix(A, 12, '#ffffff')}; --gold: ${mix(D, 85, '#000000')};
   --bg: ${mix(A, 3, '#ffffff')}; --surface: #ffffff; --surface-2: ${mix(A, 7, '#ffffff')}; --ink: ${mix(A, 22, '#161214')}; --ink-soft: ${mix(A, 22, '#5d5559')};
-  --line: ${mix(A, 15, '#ffffff')}; --tip: ${mix(D, 12, '#ffffff')}; --display: ${f.display}; --body: ${f.body}; }
+  --line: ${mix(A, 15, '#ffffff')}; --tip: ${mix(D, 12, '#ffffff')}; --display: ${f.display}; --body: ${f.body}; --script: ${f.script || f.display};
+  --hero: ${nearBlack ? '#000000' : mix(A, 88, '#050505')}; --hero-ink: #ffffff; }
 @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { ${dark} } }
 :root[data-theme="dark"] { ${dark} }`;
   }
 
   const cleanSite = (s) => ({
-    name: str(s.name, 80) || 'Maridadi Nail Academy',
+    name: str(s.name, 80) || 'Élan Beauty',
     tagline: str(s.tagline, 160),
     heroTitle: str(s.heroTitle, 120),
     heroText: str(s.heroText, 600),
@@ -99,7 +103,7 @@
     classesNote: str(s.classesNote, 600),
     whatsapp: str(s.whatsapp, 40), phone: str(s.phone, 40), email: str(s.email, 120),
     tiktok: str(s.tiktok, 120), instagram: str(s.instagram, 120), location: str(s.location, 160),
-    hours: str(s.hours, 160), about: str(s.about, 3000), shopOpen: bool(s.shopOpen, false),
+    hours: str(s.hours, 160), about: str(s.about, 3000), heroImage: cleanImage(s.heroImage), shopOpen: bool(s.shopOpen, false),
     bookFrom: /^\d{2}:\d{2}$/.test(s.bookFrom || '') ? s.bookFrom : '09:00',
     bookTo: /^\d{2}:\d{2}$/.test(s.bookTo || '') ? s.bookTo : '18:00',
     theme: cleanTheme(s.theme), logo: cleanImage(s.logo),

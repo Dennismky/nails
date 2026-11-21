@@ -17,6 +17,7 @@ const example = (name, email, phone, location, daysAgo, scores, extra = {}) => (
   unlocked: { lessons: [], designs: [] }, progress: Object.fromEntries(Object.entries(scores).map(([id, best]) => [id, { best, last: best, attempts: 1, at: now - day }])), ...extra });
 const base = seedCourse();
 base.site.shopOpen = true;
+base.site.heroImage = 'data:image/jpeg;base64,' + fs.readFileSync(path.join(root, 'public/img/elan-logo.jpg')).toString('base64');
 base.products = [
   { id: 'ex-gel-kit', title: 'Starter gel kit (example)', category: 'Kits', price: 4500, stock: 'in', image: '', published: true, description: 'Base, top coat and three colours: everything to practise gel at home.' },
   { id: 'ex-cuticle-oil', title: 'Cuticle oil (example)', category: 'Aftercare', price: 650, stock: 'low', image: '', published: true, description: 'Daily care for nails and cuticles.' },

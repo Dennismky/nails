@@ -86,7 +86,8 @@
     document.title = s.name || 'Nail Academy';
     document.querySelectorAll('[data-nav="shop"]').forEach((a) => (a.hidden = !u));
     applyTheme(s);
-    document.getElementById('brand').innerHTML = markHtml(s) + `<span class="brand-name">${brandHtml(s.name)}</span>`;
+    document.getElementById('brand').innerHTML = s.logo ? markHtml(s) : `<span class="brand-name">${brandHtml(s.name)}</span>`;
+    document.getElementById('brand').setAttribute('aria-label', s.name + ', home');
     document.getElementById('account').innerHTML = u
       ? `<div class="account"><button type="button" class="avatar-btn" data-action="account" aria-expanded="false" aria-haspopup="true">
           ${u.picture ? `<img src="${esc(u.picture)}" alt="" referrerpolicy="no-referrer">` : `<span class="avatar-fallback">${esc((u.name || '?')[0])}</span>`}<span class="sr-only">Account</span></button>
@@ -98,7 +99,7 @@
       : `<button type="button" class="btn btn-ghost btn-sm signin-top" data-action="signin">${ICON.google}<span>Sign in</span></button>`;
     const c = contactLinks(s);
     document.getElementById('footer').innerHTML = `
-      <div class="f-brand">${markHtml(s)}<div><b>${esc(s.name)}</b><span>${esc(s.tagline || '')}</span></div></div>
+      <div class="f-brand">${s.logo ? markHtml(s) : brandHtml(s.name)}<span>${esc(s.tagline || '')}</span></div>
       <div class="f-links">
         ${c.whatsapp ? `<a href="${esc(c.whatsapp)}" target="_blank" rel="noopener noreferrer" aria-label="WhatsApp">${ICON.whatsapp}</a>` : ''}
         ${c.tiktok ? `<a href="${esc(c.tiktok)}" target="_blank" rel="noopener noreferrer" aria-label="TikTok">${ICON.tiktok}</a>` : ''}
@@ -181,7 +182,7 @@
             ${u ? `<a class="btn btn-ghost" href="${u.enrolled ? '#art' : '#enroll'}">${u.enrolled ? 'Go to art work' : 'Finish enrolling'}</a>` : googleButton('Start Lesson 1 free')}
           </div>
         </div>
-        <div class="hero-art">${heroArt()}</div>
+        <div class="hero-art">${s.heroImage ? `<figure class="hero-logo"><img src="${esc(s.heroImage)}" alt="${esc(s.name)}" fetchpriority="high"></figure><span class="sparkle-dot" style="top:18%;left:12%"></span><span class="sparkle-dot" style="top:70%;left:86%;animation-delay:1.2s"></span><span class="sparkle-dot" style="top:30%;left:92%;animation-delay:2.1s"></span>` : heroArt()}</div>
       </div></section>
 
       ${offerGrid() ? `<section class="section"><div class="wrap">
@@ -525,7 +526,7 @@
   // ---------- services ----------
   function serviceCard(x) {
     return `<article class="svc-card">
-      <div class="svc-photo">${x.image ? `<img src="${esc(x.image)}" alt="${esc(x.title)}" loading="lazy">` : `<span class="svc-mark" aria-hidden="true"></span>`}</div>
+      <div class="svc-photo">${x.image ? `<img src="${esc(x.image)}" alt="${esc(x.title)}" loading="lazy">` : `<span class="svc-mark" aria-hidden="true">${esc(String(site().name || 'É').trim()[0])}</span>`}</div>
       <div class="svc-body">
         <div class="svc-top"><h3>${esc(x.title)}</h3><span class="svc-price">${esc(x.price || 'Price on request')}</span></div>
         ${x.duration ? `<span class="svc-time">${ICON.clock}<span>${esc(x.duration)}</span></span>` : ''}

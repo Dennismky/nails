@@ -1022,20 +1022,24 @@ const services = [
 export function seedCourse() {
   return {
     site: {
-      name: 'Maridadi Nail Academy',
-      tagline: 'Where every hand becomes a canvas.',
-      heroTitle: 'Every hand becomes a canvas.',
-      heroText: 'A nail school for Kenya. We train nail technicians in physical classes and online, from your very first manicure to running your own nail business.',
+      name: 'Élan Beauty',
+      tagline: 'Nail artistry & academy · Kenya',
+      heroTitle: 'Nails with élan.',
+      heroText: 'A nail studio and academy in Kenya. Book a set with our artists, or train with us in person and online, from your very first manicure to running your own nail business.',
+      heroImage: '/img/elan-logo.jpg',
+      theme: { accent: '#111111', detail: '#8a8a8a', font: 'elan' },
+      logo: '',
       whatWeDo: [
+        { title: 'Nail studio', text: 'Gel, acrylic, builder gel and nail art by our artists. Book a time that suits you on WhatsApp.' },
         { title: 'Physical classes', text: 'Small, hands-on classes in our studio. You practise on real hands with a tutor beside you.' },
         { title: 'Online course', text: 'Step-by-step lessons on hygiene, anatomy, gel, acrylic and builder gel, with a quiz at the end of every step.' },
         { title: 'Nail art', text: 'French, chrome, marble and African-inspired designs, taught from real photos, one step at a time.' },
-        { title: 'Business skills', text: 'Pricing, M-Pesa, bookings and growing your clients on TikTok and Instagram.' },
+
       ],
       classesNote: 'New classes are coming soon. Dates will be posted here. Message us on WhatsApp to reserve a seat.',
       whatsapp: '0746906609', phone: '0746906609', email: '', tiktok: '', instagram: '',
       location: 'Nairobi, Kenya', hours: '', bookFrom: '09:00', bookTo: '18:00', closedDays: [0],
-      about: '"Maridadi" means beautiful and elegant in Swahili. We teach everything a professional nail technician needs: safety, technique, artistry and business.',
+      about: '"Élan" means flair: doing something with style, confidence and grace. That is how we do nails, and how we teach them. Our studio offers manicures, extensions and nail art, and our academy trains new nail technicians in safety, technique, artistry and business.',
     },
     lessons: lessons.map((l, i) => ({ videoUrl: '', linkLabel: '', published: true, free: i === 0, ...l })),
     designs: designs.map((d) => ({ image: '', published: true, free: false, ...d })),

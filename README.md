@@ -1,6 +1,6 @@
-# Maridadi Nail Academy
+# Élan Beauty
 
-A nail technician school website for Kenya: physical classes, an online course and an art work gallery.
+Élan Beauty: a nail studio and academy website for Kenya: physical classes, an online course and an art work gallery.
 No dependencies. You need only Node.js 18 or newer.
 
 **What visitors see:** Home (what we do, physical classes), Classes, About, Contact. Course and Art work cards

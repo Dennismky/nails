@@ -80,7 +80,7 @@
   const completeQs = (l) => (l.quiz || []).filter((q) => q.q && q.options.filter(Boolean).length >= 2 && q.options[q.answer]).length;
 
   // ---------- login ----------
-  function brand() { if (data) applyTheme(data.site); document.getElementById('brand').innerHTML = (data ? markHtml(data.site) : MARK) + `<span class="brand-name">${brandHtml(data?.site?.name || 'Maridadi Nail Academy')}</span>`; }
+  function brand() { if (data) applyTheme(data.site); document.getElementById('brand').innerHTML = data && data.site.logo ? markHtml(data.site) : `<span class="brand-name">${brandHtml(data?.site?.name || 'Élan Beauty')}</span>`; }
   function loginView() {
     document.getElementById('admin-nav').hidden = true;
     root.innerHTML = `<form class="login" id="login">
@@ -505,7 +505,7 @@
     $('#tab-body').innerHTML = `<form class="panel" id="site-form">
       <h2>Site & contact</h2>
       <div class="group"><h3>School</h3>
-        ${f('name', 'School name', 'Maridadi Nail Academy')}${f('tagline', 'Tagline', 'Where every hand becomes a canvas.')}</div>
+        ${f('name', 'Business name', 'Élan Beauty')}${f('tagline', 'Tagline', 'Where every hand becomes a canvas.')}</div>
       <div class="group"><h3>Home page</h3>
         ${f('heroTitle', 'Big headline', 'Every hand becomes a canvas.', 'text', 'The last word is shown in italic colour.')}
         <label class="field"><span>Intro text</span><textarea id="s-heroText" data-s="heroText" rows="3" maxlength="600">${esc(s.heroText)}</textarea></label>
@@ -548,7 +548,7 @@
       body.innerHTML = `<div class="panel"><h2>Brand</h2><p style="margin:0">The colours, fonts and logo are managed by the website owner. Contact them if you would like a change.</p></div>`;
       return;
     }
-    const b = { theme: { ...C.cleanTheme(data.site.theme) }, logo: data.site.logo || '', name: data.site.name };
+    const b = { theme: { ...C.cleanTheme(data.site.theme) }, logo: data.site.logo || '', heroImage: data.site.heroImage || '', name: data.site.name };
     const draw = () => {
       const t = b.theme;
       body.innerHTML = `<div class="panel wide brand-panel">
@@ -570,9 +570,14 @@
                 <div class="photo-actions"><p class="muted small">A PNG with a clear background works best. Without a logo, the polish-drop mark shows in the main colour.</p>
                   <div class="row"><label class="btn btn-primary btn-sm" for="b-logo">${b.logo ? 'Replace logo' : 'Upload logo'}</label><input type="file" id="b-logo" accept="image/png,image/jpeg,image/webp" hidden>${b.logo ? '<button type="button" class="btn btn-ghost btn-sm" id="b-logo-remove">Remove</button>' : ''}</div>
                   <p class="err" id="b-logo-err"></p></div></div></div>
+            <div class="group"><h3>Home page picture</h3>
+              <div class="photo-edit"><div class="photo-box hero-box" id="hero-box">${b.heroImage ? `<img src="${esc(b.heroImage)}" alt="">` : '<span>Painted-nails drawing</span>'}</div>
+                <div class="photo-actions"><p class="muted small">Shown large on the black band at the top of the home page. A logo or photo on a black background blends in best.</p>
+                  <div class="row"><label class="btn btn-primary btn-sm" for="b-hero">${b.heroImage ? 'Replace picture' : 'Upload picture'}</label><input type="file" id="b-hero" accept="image/png,image/jpeg,image/webp" hidden>${b.heroImage ? '<button type="button" class="btn btn-ghost btn-sm" id="b-hero-remove">Use the drawing</button>' : ''}</div>
+                  <p class="err" id="b-hero-err"></p></div></div></div>
           </div>
           <div class="brand-preview" aria-label="Preview">
-            <div class="bp-top">${b.logo ? `<img class="brand-logo" src="${esc(b.logo)}" alt="">` : MARK}<span class="brand-name">${brandHtml(b.name)}</span></div>
+            <div class="bp-top">${b.logo ? `<img class="brand-logo" src="${esc(b.logo)}" alt="">` : `<span class="brand-name">${brandHtml(b.name)}</span>`}</div>
             <div class="bp-body"><div class="eyebrow">Preview</div><h3>Every hand becomes a <em>canvas.</em></h3><p>This is how buttons, labels and cards look with these colours.</p>
               <div class="row"><span class="btn btn-primary btn-sm">Book appointment</span><span class="btn btn-ghost btn-sm">See classes</span></div>
               <div class="bp-card"><span class="status soon">Starting soon</span><b>Beginner class</b><span class="svc-price">KSh 25,000</span></div></div>
@@ -594,6 +599,11 @@
         try { b.logo = await api.upload(await resizeImage(file, 400, 0.9)); draw(); changed(); } catch (err) { $('#b-logo-err').textContent = err.message; }
       });
       $('#b-logo-remove')?.addEventListener('click', () => { b.logo = ''; draw(); changed(); });
+      $('#b-hero').addEventListener('change', async (e) => {
+        const file = e.target.files[0]; if (!file) return;
+        try { b.heroImage = await api.upload(await resizeImage(file, 1400, 0.88)); draw(); changed(); } catch (err) { $('#b-hero-err').textContent = err.message; }
+      });
+      $('#b-hero-remove')?.addEventListener('click', () => { b.heroImage = ''; draw(); changed(); });
       $('#b-save').addEventListener('click', async () => {
         try { data.site = await api.saveBrand(b); brand(); toast('Brand saved. The website now uses it.'); $('#b-state').textContent = ''; }
         catch (err) { toast(err.message, true); }

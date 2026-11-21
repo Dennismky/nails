@@ -1,4 +1,4 @@
-// Maridadi Nail Academy: a small server with no dependencies (Node 18+).
+// Élan Beauty: a small server with no dependencies (Node 18+).
 // Run:  ADMIN_PASSWORD="your-secret" node server.js      (see README.md for Google sign-in and email)
 // Students: http://localhost:4000      Admin: http://localhost:4000/admin
 
@@ -311,11 +311,11 @@ async function api(req, res, url) {
 
   if (m === 'GET' && p === '/api/admin/data') return send(res, 200, { ...content(), canBrand: canBrand(req), emailReady: !!process.env.SMTP_HOST, googleReady: !!(GOOGLE_ID && GOOGLE_SECRET) });
   // Site details never change the brand; the brand has its own save (owner only when OWNER_PASSWORD is set).
-  if (m === 'PUT' && p === '/api/admin/site') { db.site = C.cleanSite({ ...(await readJson(req)), theme: db.site.theme, logo: db.site.logo }); saveContent(); return send(res, 200, db.site); }
+  if (m === 'PUT' && p === '/api/admin/site') { db.site = C.cleanSite({ ...(await readJson(req)), theme: db.site.theme, logo: db.site.logo, heroImage: db.site.heroImage }); saveContent(); return send(res, 200, db.site); }
   if (m === 'PUT' && p === '/api/admin/brand') {
     if (!canBrand(req)) return send(res, 403, { error: 'Only the owner can change the colours and logo.' });
     const b = await readJson(req);
-    db.site = C.cleanSite({ ...db.site, theme: b.theme, logo: b.logo, name: b.name || db.site.name });
+    db.site = C.cleanSite({ ...db.site, theme: b.theme, logo: b.logo, heroImage: b.heroImage, name: b.name || db.site.name });
     saveContent(); return send(res, 200, db.site);
   }
   if (m === 'POST' && p === '/api/admin/upload') { const { dataUrl } = await readJson(req, 9_000_000); return send(res, 201, { url: saveUpload(dataUrl) }); }
@@ -405,4 +405,4 @@ http.createServer(async (req, res) => {
   } catch (e) {
     send(res, 400, { error: e.message === 'too big' ? 'That is too large.' : e.message === 'bad json' ? 'Something in that request was not right.' : e.message });
   }
-}).listen(PORT, () => console.log(`Maridadi Nail Academy on ${BASE_URL}  (admin: ${BASE_URL}/admin)`));
+}).listen(PORT, () => console.log(`Élan Beauty on ${BASE_URL}  (admin: ${BASE_URL}/admin)`));
