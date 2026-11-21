@@ -1,0 +1,12 @@
+{
+  "name": "maridadi-nail-academy",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Online nail technician course with an admin panel. No dependencies.",
+  "scripts": {
+    "start": "node server.js",
+    "preview:build": "node scripts/build-preview.mjs"
+  },
+  "engines": { "node": ">=18" }
+}

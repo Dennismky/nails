@@ -1,0 +1,149 @@
+// Shared rules, used by the server (server.js) and by the preview build in the browser.
+// Who can open what, how quizzes are marked, how progress is counted, and how admin input is cleaned.
+(function (g) {
+  const str = (v, max) => (typeof v === 'string' ? v.trim().slice(0, max) : '');
+  const bool = (v, d) => (typeof v === 'boolean' ? v : d);
+  const isoDate = (v) => (/^\d{4}-\d{2}-\d{2}$/.test(v || '') ? v : '');
+
+  function cleanUrl(v) {
+    const s = str(v, 500);
+    if (!s) return '';
+    try { const u = new URL(s); return u.protocol === 'https:' || u.protocol === 'http:' ? u.href : ''; } catch { return ''; }
+  }
+  function cleanImage(v) {
+    const s = typeof v === 'string' ? v.trim() : '';
+    if (/^\/uploads\/[a-z0-9]{8,40}\.(jpg|png|webp)$/.test(s)) return s;
+    if (s.length < 3_000_000 && /^data:image\/(jpeg|png|webp);base64,[A-Za-z0-9+/=]+$/.test(s)) return s; // preview only
+    return cleanUrl(s);
+  }
+  function cleanQuiz(list) {
+    return (Array.isArray(list) ? list : []).slice(0, 5).map((q) => {
+      const options = (Array.isArray(q.options) ? q.options : []).slice(0, 4).map((o) => str(o, 200));
+      const answer = Number.isInteger(q.answer) && q.answer >= 0 && q.answer < options.length ? q.answer : 0;
+      return { q: str(q.q, 300), options, answer, explain: str(q.explain, 500) };
+    });
+  }
+  const cleanLesson = (i, id) => ({
+    id, section: i.section === 'art' ? 'art' : 'course',
+    title: str(i.title, 120) || 'Untitled lesson', summary: str(i.summary, 300), duration: str(i.duration, 30),
+    videoUrl: cleanUrl(i.videoUrl), linkLabel: str(i.linkLabel, 80), body: str(i.body, 40000),
+    published: bool(i.published, true), free: bool(i.free, false), quiz: cleanQuiz(i.quiz),
+  });
+  const cleanDesign = (i, id) => ({
+    id, title: str(i.title, 120) || 'Untitled design', level: str(i.level, 40), time: str(i.time, 40),
+    description: str(i.description, 2000), image: cleanImage(i.image),
+    tools: str(i.tools, 1000),
+    steps: (Array.isArray(i.steps) ? i.steps : String(i.steps || '').split('\n')).map((s) => str(s, 600)).filter(Boolean).slice(0, 40),
+    published: bool(i.published, true), free: bool(i.free, false),
+  });
+  const cleanClass = (i, id) => ({
+    id, title: str(i.title, 120) || 'Untitled class', description: str(i.description, 2000),
+    startDate: isoDate(i.startDate), endDate: isoDate(i.endDate), schedule: str(i.schedule, 120),
+    location: str(i.location, 160), fee: str(i.fee, 80), seats: str(i.seats, 40), published: bool(i.published, true),
+  });
+  const cleanSite = (s) => ({
+    name: str(s.name, 80) || 'Maridadi Nail Academy',
+    tagline: str(s.tagline, 160),
+    heroTitle: str(s.heroTitle, 120),
+    heroText: str(s.heroText, 600),
+    whatWeDo: (Array.isArray(s.whatWeDo) ? s.whatWeDo : []).slice(0, 6).map((w) => ({ title: str(w.title, 80), text: str(w.text, 400) })).filter((w) => w.title || w.text),
+    classesNote: str(s.classesNote, 600),
+    whatsapp: str(s.whatsapp, 40), phone: str(s.phone, 40), email: str(s.email, 120),
+    tiktok: str(s.tiktok, 120), instagram: str(s.instagram, 120), location: str(s.location, 160),
+    hours: str(s.hours, 160), about: str(s.about, 3000),
+  });
+
+  // ---------- access ----------
+  function canOpen(kind, item, user) {
+    if (!user || !user.enrolled || !item) return false;
+    if (item.free || user.unlockAll) return true;
+    return ((user.unlocked && user.unlocked[kind]) || []).includes(item.id);
+  }
+  const publicUser = (u) => u && ({ name: u.name, email: u.email, picture: u.picture, phone: u.phone, location: u.location, enrolled: !!u.enrolled });
+
+  function classStatus(c, today) {
+    today = today || new Date().toISOString().slice(0, 10);
+    if (!c.startDate) return 'tba';                       // dates not announced yet ("incoming")
+    if (c.startDate > today) return 'upcoming';
+    const end = c.endDate && c.endDate >= c.startDate ? c.endDate : c.startDate; // no end date = one-day class
+    return end >= today ? 'ongoing' : 'past';
+  }
+
+  function progressOf(db, user) {
+    const lessons = db.lessons.filter((l) => l.published);
+    const p = (user && user.progress) || {};
+    const done = lessons.filter((l) => p[l.id]).length;
+    const points = lessons.reduce((a, l) => a + ((p[l.id] && p[l.id].best) || 0), 0);
+    return { done, total: lessons.length, percent: lessons.length ? Math.round((done / lessons.length) * 100) : 0, points, maxPoints: lessons.length * 5 };
+  }
+
+  // What any visitor may see. Locked lessons and designs show their title only.
+  function catalog(db, user) {
+    const p = (user && user.progress) || {};
+    return {
+      site: db.site,
+      me: publicUser(user),
+      classes: db.classes.filter((c) => c.published).map((c) => ({ ...c, status: classStatus(c) })).filter((c) => c.status !== 'past')
+        .sort((a, b) => (a.startDate || '9999').localeCompare(b.startDate || '9999')),
+      lessons: db.lessons.filter((l) => l.published).map((l) => {
+        const open = canOpen('lessons', l, user);
+        return { id: l.id, section: l.section, title: l.title, summary: open ? l.summary : '', duration: l.duration, free: l.free, locked: !open, progress: p[l.id] || null };
+      }),
+      designs: db.designs.filter((d) => d.published).map((d) => {
+        const open = canOpen('designs', d, user);
+        return { id: d.id, title: d.title, level: d.level, image: d.image, description: open ? d.description : '', free: d.free, locked: !open };
+      }),
+      progress: user ? progressOf(db, user) : null,
+    };
+  }
+
+  // A full lesson for someone allowed to open it. The right answers stay on the server.
+  function lessonFor(db, user, id) {
+    const l = db.lessons.find((x) => x.id === id && x.published);
+    if (!l) return { status: 404 };
+    if (!canOpen('lessons', l, user)) return { status: 403, locked: true, signedIn: !!user, enrolled: !!(user && user.enrolled), title: l.title };
+    const { quiz, ...rest } = l;
+    return {
+      status: 200,
+      lesson: { ...rest, quiz: quiz.filter((q) => q.q && q.options.filter(Boolean).length >= 2).map((q) => ({ q: q.q, options: q.options })), progress: (user.progress || {})[id] || null },
+    };
+  }
+  function designFor(db, user, id) {
+    const d = db.designs.find((x) => x.id === id && x.published);
+    if (!d) return { status: 404 };
+    if (!canOpen('designs', d, user)) return { status: 403, locked: true, signedIn: !!user, enrolled: !!(user && user.enrolled), title: d.title };
+    return { status: 200, design: d };
+  }
+  function grade(lesson, answers) {
+    const quiz = lesson.quiz.filter((q) => q.q && q.options.filter(Boolean).length >= 2);
+    const results = quiz.map((q, i) => ({ correct: q.answer, picked: Number.isInteger(answers[i]) ? answers[i] : -1, explain: q.explain || 'The right answer is: ' + q.options[q.answer] }));
+    const score = results.filter((r) => r.correct === r.picked).length;
+    return { score, total: quiz.length, results };
+  }
+  function recordScore(user, id, score) {
+    user.progress = user.progress || {};
+    const prev = user.progress[id] || {};
+    user.progress[id] = { best: Math.max(prev.best || 0, score), last: score, attempts: (prev.attempts || 0) + 1, at: Date.now() };
+  }
+
+  // Admin view of one student: their progress on every lesson and what is unlocked.
+  function studentDetail(db, s) {
+    return {
+      ...s,
+      summary: progressOf(db, s),
+      lessons: db.lessons.map((l) => ({ id: l.id, title: l.title, section: l.section, free: l.free, published: l.published, progress: (s.progress || {})[l.id] || null, unlocked: canOpen('lessons', l, s) })),
+      designs: db.designs.map((d) => ({ id: d.id, title: d.title, free: d.free, published: d.published, unlocked: canOpen('designs', d, s) })),
+    };
+  }
+  const studentRow = (db, s) => ({ id: s.id, name: s.name, email: s.email, phone: s.phone, location: s.location, picture: s.picture, enrolled: s.enrolled, createdAt: s.createdAt, enrolledAt: s.enrolledAt, lastLogin: s.lastLogin, unlockAll: !!s.unlockAll, summary: progressOf(db, s) });
+
+  // 0746906609 / +254 746 906609 -> 254746906609 (for wa.me links)
+  function waNumber(v) {
+    let d = String(v || '').replace(/\D/g, '');
+    if (d.startsWith('0')) d = '254' + d.slice(1);
+    else if (d.length === 9 && /^[17]/.test(d)) d = '254' + d;
+    return d.length >= 10 ? d : '';
+  }
+
+  g.MNACore = { str, cleanUrl, cleanImage, cleanLesson, cleanDesign, cleanClass, cleanSite, canOpen, publicUser, classStatus, progressOf, catalog, lessonFor, designFor, grade, recordScore, studentDetail, studentRow, waNumber };
+})(typeof globalThis !== 'undefined' ? globalThis : window);
