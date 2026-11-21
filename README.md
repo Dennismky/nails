@@ -11,6 +11,11 @@ lesson or design you mark "free" open straight away. Everything else stays locke
 that student. Clicking a lock shows a popup with your WhatsApp and email. Students land on **Art work**
 when they sign in, and their progress is saved to their account.
 
+**Shop:** signed-in students see a Shop page, add products to a cart and place an order. You get an email,
+the order appears in Admin → Orders, and the customer can send it to you on WhatsApp. Prices are always taken
+from your product list, never from the browser. There are no online payments yet: you confirm each order and
+arrange payment yourself.
+
 **What you see (`/admin`):**
 
 | Tab | What you do there |
@@ -18,8 +23,11 @@ when they sign in, and their progress is saved to their account.
 | Students | Every student, their contact details and progress %. Open one to see scores, then unlock lessons and designs one by one, or everything at once. |
 | Lessons | Text, video link, the 5 quiz questions, order (drag or ↑ ↓), "free for every student", draft/published. |
 | Art work | Upload a photo, write the description, tools and steps (one per line), free or locked. |
+| Orders | Shop orders: customer, items, total, note. Mark them new, confirmed, delivered or cancelled, and WhatsApp the customer. |
+| Services | Your services with photo, price and time. Anyone can see them and book on WhatsApp. |
+| Products | Shop items with photo, price (KSh), category and stock. |
 | Classes | Physical classes with start/end dates. No date shows as "Incoming", and finished classes hide themselves. |
-| Site & contact | School name, home page text, what we do, WhatsApp, email, phone, TikTok, Instagram, About. |
+| Site & contact | The **Shop open** switch (students see "Coming soon" until it is on), school name, home page text, what we do, WhatsApp, email, phone, TikTok, Instagram, About. |
 | Backup | Setup status, test email, download/load a backup, restore the starting content. |
 
 ## Run it

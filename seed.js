@@ -1010,6 +1010,15 @@ const classes = [
   },
 ];
 
+// Prices are left empty on purpose: add your own in Admin > Services.
+const services = [
+  { id: 'gel-manicure', title: 'Gel manicure', duration: '1 hr', price: '', description: 'Shape, cuticle care and long-lasting gel polish in the colour of your choice.' },
+  { id: 'acrylic-set', title: 'Acrylic full set', duration: '2 hrs', price: '', description: 'Strong acrylic extensions in your chosen length and shape, finished with gel colour.' },
+  { id: 'builder-gel', title: 'Builder gel (BIAB)', duration: '1 hr 15 min', price: '', description: 'Strengthens your natural nails so they can grow long without breaking.' },
+  { id: 'pedicure', title: 'Spa pedicure', duration: '1 hr', price: '', description: 'Soak, scrub, gentle callus care, massage and polish.' },
+  { id: 'nail-art', title: 'Nail art', duration: 'from 20 min', price: '', description: 'French, chrome, marble, beadwork and custom designs, priced per set.' },
+];
+
 export function seedCourse() {
   return {
     site: {
@@ -1031,5 +1040,7 @@ export function seedCourse() {
     lessons: lessons.map((l, i) => ({ videoUrl: '', linkLabel: '', published: true, free: i === 0, ...l })),
     designs: designs.map((d) => ({ image: '', published: true, free: false, ...d })),
     classes,
+    services: services.map((x) => ({ image: '', published: true, ...x })),
+    products: [],
   };
 }

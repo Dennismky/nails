@@ -18,6 +18,7 @@ const DATA_DIR = path.resolve(process.env.DATA_DIR || path.join(ROOT, 'data'));
 const UPLOADS = path.join(DATA_DIR, 'uploads');
 const CONTENT_FILE = path.join(DATA_DIR, 'course.json');
 const STUDENTS_FILE = path.join(DATA_DIR, 'students.json');
+const ORDERS_FILE = path.join(DATA_DIR, 'orders.json');
 const PORT = Number(process.env.PORT) || 4000;
 const BASE_URL = (process.env.BASE_URL || `http://localhost:${PORT}`).replace(/\/$/, '');
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || '';
@@ -47,11 +48,17 @@ function loadContent() {
   c.designs = c.designs || seed.designs;
   c.classes = c.classes || seed.classes;
   c.lessons = c.lessons || seed.lessons;
+  c.services = c.services || seed.services;
+  c.products = c.products || [];
   return c;
 }
 let db = loadContent();
 let students = (() => { try { return JSON.parse(fs.readFileSync(STUDENTS_FILE, 'utf8')); } catch { return []; } })();
-const saveContent = () => writeJson(CONTENT_FILE, { site: db.site, lessons: db.lessons, designs: db.designs, classes: db.classes });
+let orders = (() => { try { return JSON.parse(fs.readFileSync(ORDERS_FILE, 'utf8')); } catch { return []; } })();
+const CONTENT_KEYS = ['site', 'lessons', 'designs', 'classes', 'services', 'products'];
+const content = () => Object.fromEntries(CONTENT_KEYS.map((k) => [k, db[k]]));
+const saveContent = () => writeJson(CONTENT_FILE, content());
+const saveOrders = () => writeJson(ORDERS_FILE, orders);
 const saveStudents = () => writeJson(STUDENTS_FILE, students);
 const newId = () => crypto.randomBytes(6).toString('hex');
 
@@ -153,6 +160,13 @@ function enrollmentEmail(s) {
     .catch((e) => console.error('Enrollment email failed:', e.message));
 }
 
+function orderEmail(o) {
+  const text = ['A new order has come in.', '', C.orderText(o), '', `Customer:  ${o.name}`, `Phone:     ${o.phone || '-'}`, `Email:     ${o.email}`, `Location:  ${o.location || '-'}`,
+    `WhatsApp:  ${C.waNumber(o.phone) ? 'https://wa.me/' + C.waNumber(o.phone) : '-'}`, '', `See all orders: ${BASE_URL}/admin`].join('\n');
+  sendMail({ to: adminInbox(), subject: `New order ${o.number} from ${o.name}: ${C.ksh(o.total)}`, text })
+    .catch((e) => console.error('Order email failed:', e.message));
+}
+
 // ---------- Google sign-in (OAuth 2.0 authorization code flow) ----------
 async function googleCallback(req, res, url) {
   const fail = (why) => { console.warn('Google sign-in failed:', why); redirect(res, '/#signin-failed'); };
@@ -228,7 +242,8 @@ function saveUpload(dataUrl) {
   return '/uploads/' + name;
 }
 
-const KINDS = { lessons: C.cleanLesson, designs: C.cleanDesign, classes: C.cleanClass };
+const KINDS = { lessons: C.cleanLesson, designs: C.cleanDesign, classes: C.cleanClass, services: C.cleanService, products: C.cleanProduct };
+const KIND_RE = '(lessons|designs|classes|services|products)';
 
 // ---------- API ----------
 async function api(req, res, url) {
@@ -261,6 +276,18 @@ async function api(req, res, url) {
     if (first) enrollmentEmail(me);
     return send(res, 200, { me: C.publicUser(me) });
   }
+  if (m === 'POST' && p === '/api/orders') {
+    const b = await readJson(req);
+    const out = C.buildOrder(db, me, b.items, b.note, 'M-' + (1001 + orders.length));
+    if (out.error) return send(res, me ? 400 : 401, { error: out.error });
+    orders.push(out.order); saveOrders();
+    orderEmail(out.order);
+    return send(res, 201, { order: out.order });
+  }
+  if (m === 'GET' && p === '/api/orders/mine') {
+    if (!me) return send(res, 401, { error: 'Please sign in.' });
+    return send(res, 200, orders.filter((o) => o.studentId === me.id).sort((a, b) => b.createdAt - a.createdAt).slice(0, 30));
+  }
   if (m === 'POST' && p === '/api/logout') return send(res, 200, { ok: true }, { 'Set-Cookie': cookie('mna_user', '', 0) });
 
   // ----- admin -----
@@ -277,22 +304,22 @@ async function api(req, res, url) {
   if (!p.startsWith('/api/admin/')) return send(res, 404, { error: 'Unknown request.' });
   if (!isAdmin(req)) return send(res, 401, { error: 'Please log in as admin.' });
 
-  if (m === 'GET' && p === '/api/admin/data') return send(res, 200, { site: db.site, lessons: db.lessons, designs: db.designs, classes: db.classes, emailReady: !!process.env.SMTP_HOST, googleReady: !!(GOOGLE_ID && GOOGLE_SECRET) });
+  if (m === 'GET' && p === '/api/admin/data') return send(res, 200, { ...content(), emailReady: !!process.env.SMTP_HOST, googleReady: !!(GOOGLE_ID && GOOGLE_SECRET) });
   if (m === 'PUT' && p === '/api/admin/site') { db.site = C.cleanSite(await readJson(req)); saveContent(); return send(res, 200, db.site); }
   if (m === 'POST' && p === '/api/admin/upload') { const { dataUrl } = await readJson(req, 9_000_000); return send(res, 201, { url: saveUpload(dataUrl) }); }
 
-  if ((r = p.match(/^\/api\/admin\/(lessons|designs|classes)$/)) && m === 'POST') {
+  if ((r = p.match(new RegExp(`^/api/admin/${KIND_RE}$`))) && m === 'POST') {
     const item = KINDS[r[1]](await readJson(req), newId());
     db[r[1]].push(item); saveContent();
     return send(res, 201, item);
   }
-  if ((r = p.match(/^\/api\/admin\/(lessons|designs|classes)\/([\w-]+)$/))) {
+  if ((r = p.match(new RegExp(`^/api/admin/${KIND_RE}/([\\w-]+)$`)))) {
     const list = db[r[1]], i = list.findIndex((x) => x.id === r[2]);
     if (i < 0) return send(res, 404, { error: 'Not found.' });
     if (m === 'PUT') { list[i] = KINDS[r[1]](await readJson(req), r[2]); saveContent(); return send(res, 200, list[i]); }
     if (m === 'DELETE') { list.splice(i, 1); saveContent(); return send(res, 200, { ok: true }); }
   }
-  if ((r = p.match(/^\/api\/admin\/order\/(lessons|designs|classes)$/)) && m === 'PUT') {
+  if ((r = p.match(new RegExp(`^/api/admin/order/${KIND_RE}$`))) && m === 'PUT') {
     const { ids } = await readJson(req);
     if (!Array.isArray(ids)) return send(res, 400, { error: 'ids must be a list.' });
     const byId = new Map(db[r[1]].map((x) => [x.id, x]));
@@ -315,6 +342,15 @@ async function api(req, res, url) {
     }
     if (m === 'DELETE') { students = students.filter((x) => x !== s); saveStudents(); return send(res, 200, { ok: true }); }
   }
+  if (m === 'GET' && p === '/api/admin/orders') return send(res, 200, [...orders].sort((a, b) => b.createdAt - a.createdAt));
+  if ((r = p.match(/^\/api\/admin\/orders\/([\w-]+)$/)) && m === 'PUT') {
+    const o = orders.find((x) => x.id === r[1]);
+    if (!o) return send(res, 404, { error: 'Order not found.' });
+    const { status } = await readJson(req);
+    if (!['new', 'confirmed', 'delivered', 'cancelled'].includes(status)) return send(res, 400, { error: 'Unknown status.' });
+    o.status = status; saveOrders();
+    return send(res, 200, o);
+  }
   if (m === 'POST' && p === '/api/admin/test-email') {
     if (!process.env.SMTP_HOST) return send(res, 400, { error: 'Email is not set up yet. See "Enrollment emails" in README.md.' });
     try { await sendMail({ to: adminInbox(), subject: 'Test email from your nail academy', text: 'Email is working. You will get a message like this each time a student enrolls.' }); return send(res, 200, { ok: true, to: adminInbox() }); }
@@ -325,11 +361,12 @@ async function api(req, res, url) {
     if (!d || !Array.isArray(d.lessons)) return send(res, 400, { error: 'That file is not a course backup.' });
     const keep = (x) => (/^[\w-]{1,40}$/.test(x.id || '') ? x.id : newId());
     db = { site: C.cleanSite(d.site || d.school || db.site), lessons: d.lessons.map((x) => C.cleanLesson(x, keep(x))),
-      designs: (d.designs || []).map((x) => C.cleanDesign(x, keep(x))), classes: (d.classes || []).map((x) => C.cleanClass(x, keep(x))) };
+      designs: (d.designs || []).map((x) => C.cleanDesign(x, keep(x))), classes: (d.classes || []).map((x) => C.cleanClass(x, keep(x))),
+      services: (d.services || []).map((x) => C.cleanService(x, keep(x))), products: (d.products || []).map((x) => C.cleanProduct(x, keep(x))) };
     saveContent();
     return send(res, 200, { ok: true });
   }
-  if (m === 'POST' && p === '/api/admin/reset') { const s = seedCourse(); db = { ...s, site: db.site }; saveContent(); return send(res, 200, { ok: true }); }
+  if (m === 'POST' && p === '/api/admin/reset') { const s = seedCourse(); db = { ...s, site: db.site, products: db.products }; saveContent(); return send(res, 200, { ok: true }); }
   return send(res, 404, { error: 'Unknown request.' });
 }
 

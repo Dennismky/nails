@@ -12,10 +12,10 @@
   // ---------- small pieces ----------
   const lockBadge = `<span class="lock-badge" aria-hidden="true">${ICON.lock}</span>`;
   const googleButton = (label = 'Sign in with Google') => `<button type="button" class="btn btn-google" data-action="signin">${ICON.google}<span>${label}</span></button>`;
-  function contactButtons(message, { compact } = {}) {
+  function contactButtons(message, { compact, label = 'Chat on WhatsApp' } = {}) {
     const c = contactLinks(site(), message);
     const out = [];
-    if (c.whatsapp) out.push(`<a class="btn btn-wa ${compact ? 'btn-sm' : ''}" href="${esc(c.whatsapp)}" target="_blank" rel="noopener noreferrer">${ICON.whatsapp}<span>Chat on WhatsApp</span></a>`);
+    if (c.whatsapp) out.push(`<a class="btn btn-wa ${compact ? 'btn-sm' : ''}" href="${esc(c.whatsapp)}" target="_blank" rel="noopener noreferrer">${ICON.whatsapp}<span>${label}</span></a>`);
     if (c.email) out.push(`<a class="btn btn-ghost ${compact ? 'btn-sm' : ''}" href="mailto:${esc(c.email)}">${ICON.mail}<span>${esc(c.email)}</span></a>`);
     return out.join('');
   }
@@ -84,6 +84,7 @@
   function chrome() {
     const s = site(), u = me();
     document.title = s.name || 'Nail Academy';
+    document.querySelectorAll('[data-nav="shop"]').forEach((a) => (a.hidden = !u));
     document.getElementById('brand').innerHTML = MARK + `<span class="brand-name">${brandHtml(s.name)}</span>`;
     document.getElementById('account').innerHTML = u
       ? `<div class="account"><button type="button" class="avatar-btn" data-action="account" aria-expanded="false" aria-haspopup="true">
@@ -150,7 +151,7 @@
       <h3>${esc(c.title)}</h3>
       ${c.description ? `<p>${esc(c.description)}</p>` : ''}
       <ul class="facts">${facts.map(([i, t]) => `<li>${i}<span>${esc(t)}</span></li>`).join('')}</ul>
-      <div class="class-cta">${contactButtons(`Hello, I would like to book a seat in "${c.title}"${c.startDate ? ' starting ' + fmtDate(c.startDate) : ''}.`, { compact: true })}</div>
+      <div class="class-cta">${contactButtons(`Hello, I would like to book a seat in "${c.title}"${c.startDate ? ' starting ' + fmtDate(c.startDate) : ''}.`, { compact: true, label: 'Book a seat on WhatsApp' })}</div>
     </article>`;
   }
   const incomingCard = () => `<article class="class-card incoming">
@@ -183,6 +184,11 @@
 
       ${offerGrid() ? `<section class="section"><div class="wrap">
         <div class="section-head center"><div class="eyebrow">What we do</div><h2>Training that gets you working</h2></div>${offerGrid()}
+      </div></section>` : ''}
+
+      ${cat.services.length ? `<section class="section"><div class="wrap">
+        <div class="section-head"><div><div class="eyebrow">Services</div><h2>Book your nails with us</h2></div><a class="btn btn-ghost btn-sm" href="#services">All services</a></div>
+        <div class="svc-grid">${cat.services.slice(0, 3).map(serviceCard).join('')}</div>
       </div></section>` : ''}
 
       <section class="section tint"><div class="wrap">
@@ -441,6 +447,128 @@
     setTimeout(() => layer.remove(), 4200);
   }
 
+  // ---------- services ----------
+  function serviceCard(x) {
+    return `<article class="svc-card">
+      <div class="svc-photo">${x.image ? `<img src="${esc(x.image)}" alt="${esc(x.title)}" loading="lazy">` : `<span class="svc-mark" aria-hidden="true"></span>`}</div>
+      <div class="svc-body">
+        <div class="svc-top"><h3>${esc(x.title)}</h3><span class="svc-price">${esc(x.price || 'Price on request')}</span></div>
+        ${x.duration ? `<span class="svc-time">${ICON.clock}<span>${esc(x.duration)}</span></span>` : ''}
+        ${x.description ? `<p>${esc(x.description)}</p>` : ''}
+        <div class="svc-cta">${contactButtons(`Hello, I would like to book: ${x.title}.`, { compact: true, label: 'Book on WhatsApp' })}</div>
+      </div>
+    </article>`;
+  }
+  function servicesView() {
+    app.innerHTML = pageHead('Services', 'Our services', 'Book a nail appointment at our studio. Tap a service to book it on WhatsApp.') + `
+      <section class="section"><div class="wrap">
+        <div class="svc-grid">${cat.services.map(serviceCard).join('') || '<p class="muted">Our service list is coming soon.</p>'}</div>
+      </div></section>`;
+  }
+
+  // ---------- shop ----------
+  const cartKey = () => 'mna_cart_' + ((me() && me().email) || 'guest');
+  const getCart = () => window.MNA.storage.get(cartKey(), {});
+  const setCart = (c) => { window.MNA.storage.set(cartKey(), c); updateCartBadge(); };
+  const cartLines = () => Object.entries(getCart()).map(([id, qty]) => ({ p: cat.products.find((x) => x.id === id), qty })).filter((l) => l.p && l.p.stock !== 'out' && l.p.price);
+  const cartCount = () => cartLines().reduce((a, l) => a + l.qty, 0);
+  function updateCartBadge() {
+    const n = cartCount();
+    document.querySelectorAll('[data-cart-count]').forEach((el) => { el.textContent = n; el.hidden = !n; });
+  }
+  const STOCK = { in: ['In stock', 'ok'], low: ['Few left', 'low'], out: ['Out of stock', 'out'] };
+  const ORDER_STATUS = { new: 'Received', confirmed: 'Confirmed', delivered: 'Delivered', cancelled: 'Cancelled' };
+
+  async function shopView() {
+    const u = me();
+    const head = pageHead('Shop', 'Shop', 'Nail products we use and trust, for students of the academy.');
+    if (!u) { app.innerHTML = head + `<section class="section"><div class="wrap"><div class="banner"><div><b>Sign in to shop.</b> The shop is open to students who sign in with Google.</div>${googleButton()}</div></div></section>`; return; }
+    if (!u.enrolled) { app.innerHTML = head + `<section class="section"><div class="wrap"><div class="banner"><div><b>Almost there.</b> Finish enrolling to open the shop.</div><a class="btn btn-primary btn-sm" href="#enroll">Finish enrolling</a></div></div></section>`; return; }
+    if (!cat.shopOpen) {
+      app.innerHTML = head + `<section class="section"><div class="wrap"><div class="soon-card">${ICON.bag}<h2>Products are coming soon</h2>
+        <p>We are stocking the shop with the polishes, gels and tools we use in class. Ask us on WhatsApp if you need something now.</p>
+        <div class="row-c">${contactButtons('Hello, I would like to buy nail products.', { compact: true })}</div></div></div></section>`;
+      return;
+    }
+    app.innerHTML = head + `<section class="section"><div class="wrap">
+      <div class="shop-layout">
+        <div class="product-grid" id="products"></div>
+        <aside class="cart" id="cart" aria-label="Your cart"></aside>
+      </div>
+      <div id="my-orders"></div>
+    </div></section>
+    <a class="cart-fab" href="#cart" id="cart-fab" hidden>${ICON.bag}<span id="fab-text"></span></a>`;
+    drawProducts(); drawCart(); drawOrders();
+    document.getElementById('cart-fab').addEventListener('click', (e) => { e.preventDefault(); document.getElementById('cart').scrollIntoView({ behavior: 'smooth' }); });
+  }
+
+  function stepper(id, qty) {
+    return `<span class="stepper"><button type="button" data-qty="${esc(id)}" data-d="-1" aria-label="One less">−</button><b>${qty}</b><button type="button" data-qty="${esc(id)}" data-d="1" aria-label="One more">+</button></span>`;
+  }
+  function changeQty(id, d) {
+    const c = getCart();
+    c[id] = Math.max(0, Math.min(99, (c[id] || 0) + d));
+    if (!c[id]) delete c[id];
+    setCart(c); drawProducts(); drawCart();
+  }
+  function drawProducts() {
+    const c = getCart();
+    const box = document.getElementById('products');
+    box.innerHTML = cat.products.map((x) => {
+      const [label, cls] = STOCK[x.stock];
+      const can = x.stock !== 'out' && x.price;
+      return `<article class="product">
+        <div class="product-photo">${x.image ? `<img src="${esc(x.image)}" alt="${esc(x.title)}" loading="lazy">` : '<span class="photo-soon">Photo coming soon</span>'}<span class="stock ${cls}">${label}</span></div>
+        <div class="product-body">
+          ${x.category ? `<small class="cat">${esc(x.category)}</small>` : ''}
+          <h3>${esc(x.title)}</h3>
+          ${x.description ? `<p>${esc(x.description)}</p>` : ''}
+          <div class="product-foot"><b class="price">${x.price ? C.ksh(x.price) : 'Ask for price'}</b>
+            ${!can ? '' : c[x.id] ? stepper(x.id, c[x.id]) : `<button type="button" class="btn btn-primary btn-sm" data-qty="${esc(x.id)}" data-d="1">Add to cart</button>`}</div>
+        </div>
+      </article>`;
+    }).join('') || '<p class="muted">New products are on the way.</p>';
+    box.querySelectorAll('[data-qty]').forEach((b) => b.addEventListener('click', () => changeQty(b.dataset.qty, Number(b.dataset.d))));
+  }
+  function drawCart() {
+    const lines = cartLines();
+    const total = lines.reduce((a, l) => a + l.p.price * l.qty, 0);
+    const box = document.getElementById('cart');
+    box.innerHTML = `<h2>${ICON.bag}<span>Your cart</span></h2>
+      ${lines.length ? `<ul class="cart-lines">${lines.map((l) => `<li><span class="cl-t">${esc(l.p.title)}<small>${C.ksh(l.p.price)} each</small></span>${stepper(l.p.id, l.qty)}<b>${C.ksh(l.p.price * l.qty)}</b></li>`).join('')}</ul>
+        <div class="cart-total"><span>Total</span><b>${C.ksh(total)}</b></div>
+        <label class="field"><span>Note (optional)</span><textarea id="order-note" rows="2" maxlength="500" placeholder="Colour, delivery area or pick-up time"></textarea></label>
+        <p class="muted small">We confirm your order and how to pay on WhatsApp or by phone.</p>
+        <p class="err" id="order-err"></p>
+        <button type="button" class="btn btn-primary" id="place-order">Place order</button>`
+      : '<p class="muted">Your cart is empty. Add products to order them.</p>'}`;
+    box.querySelectorAll('[data-qty]').forEach((b) => b.addEventListener('click', () => changeQty(b.dataset.qty, Number(b.dataset.d))));
+    document.getElementById('place-order')?.addEventListener('click', placeOrder);
+    const fab = document.getElementById('cart-fab');
+    if (fab) { fab.hidden = !lines.length; document.getElementById('fab-text').textContent = `${cartCount()} · ${C.ksh(total)}`; }
+  }
+  async function placeOrder(e) {
+    const btn = e.target; btn.disabled = true; btn.textContent = 'Placing order…';
+    try {
+      const { order } = await api.placeOrder(cartLines().map((l) => ({ id: l.p.id, qty: l.qty })), document.getElementById('order-note').value);
+      setCart({}); drawProducts(); drawCart(); drawOrders();
+      const wa = contactLinks(site(), C.orderText(order) + `\nName: ${order.name}`).whatsapp;
+      openModal(`<div class="modal-lock ok">${ICON.check}</div><h2 id="modal-title">Order ${esc(order.number)} placed</h2>
+        <p>Thank you! We have your order for <b>${C.ksh(order.total)}</b> and will contact you to confirm it and arrange payment.</p>
+        <div class="modal-actions stack">${wa ? `<a class="btn btn-wa" href="${esc(wa)}" target="_blank" rel="noopener noreferrer">${ICON.whatsapp}<span>Send order on WhatsApp</span></a>` : ''}<button type="button" class="btn btn-ghost" data-close>Keep shopping</button></div>`);
+    } catch (err) { document.getElementById('order-err').textContent = err.message; btn.disabled = false; btn.textContent = 'Place order'; }
+  }
+  async function drawOrders() {
+    const box = document.getElementById('my-orders');
+    if (!box) return;
+    let list = [];
+    try { list = await api.myOrders(); } catch { return; }
+    box.innerHTML = list.length ? `<h2 class="group-title" style="margin-top:40px">My orders</h2><div class="order-list">${list.map((o) => `<div class="order-row">
+        <span><b>${esc(o.number)}</b><small>${new Date(o.createdAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}</small></span>
+        <span class="o-items">${o.items.map((l) => `${l.qty} × ${esc(l.title)}`).join(', ')}</span>
+        <b>${C.ksh(o.total)}</b><span class="o-status ${o.status}">${ORDER_STATUS[o.status]}</span></div>`).join('')}</div>` : '';
+  }
+
   function aboutView() {
     const s = site();
     app.innerHTML = pageHead('About us', esc(s.name), esc(s.tagline || '')) + `
@@ -538,10 +666,10 @@
     window.scrollTo(0, 0);
     if (h.startsWith('lesson-')) return lessonView(h.slice(7));
     if (h.startsWith('design-')) return designView(h.slice(7));
-    ({ classes: classesView, course: courseView, art: artView, about: aboutView, contact: contactView, enroll: enrollView, me: meView }[h] || home)();
+    ({ services: servicesView, shop: shopView, classes: classesView, course: courseView, art: artView, about: aboutView, contact: contactView, enroll: enrollView, me: meView }[h] || home)();
   }
 
-  async function reload() { cat = await api.catalog(); chrome(); }
+  async function reload() { cat = await api.catalog(); chrome(); updateCartBadge(); }
 
   reload().then(() => { route(); window.addEventListener('hashchange', route); })
     .catch((e) => { app.innerHTML = `<div class="empty"><h2>We could not load the site</h2><p>${esc(e.message)}</p></div>`; });

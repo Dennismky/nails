@@ -15,7 +15,14 @@ const example = (name, email, phone, location, daysAgo, scores, extra = {}) => (
   id: 'ex-' + email.split('@')[0], googleId: 'example', email, name: name + ' (example)', picture: '', phone, location, enrolled: true,
   createdAt: now - daysAgo * day, enrolledAt: now - daysAgo * day, lastLogin: now - day, unlockAll: false,
   unlocked: { lessons: [], designs: [] }, progress: Object.fromEntries(Object.entries(scores).map(([id, best]) => [id, { best, last: best, attempts: 1, at: now - day }])), ...extra });
-const data = { ...seedCourse(), students: [
+const base = seedCourse();
+base.site.shopOpen = true;
+base.products = [
+  { id: 'ex-gel-kit', title: 'Starter gel kit (example)', category: 'Kits', price: 4500, stock: 'in', image: '', published: true, description: 'Base, top coat and three colours: everything to practise gel at home.' },
+  { id: 'ex-cuticle-oil', title: 'Cuticle oil (example)', category: 'Aftercare', price: 650, stock: 'low', image: '', published: true, description: 'Daily care for nails and cuticles.' },
+  { id: 'ex-lamp', title: 'LED lamp (example)', category: 'Tools', price: 3200, stock: 'out', image: '', published: true, description: 'Rechargeable LED lamp for curing gel.' },
+];
+const data = { ...base, students: [
   example('Achieng Otieno', 'achieng@example.com', '0712 345 678', 'Kisumu', 3, { welcome: 5, anatomy: 4, hygiene: 5 }, { unlocked: { lessons: ['anatomy', 'hygiene', 'disorders'], designs: ['mirror-chrome'] } }),
   example('Wanjiku Kamau', 'wanjiku@example.com', '0722 111 222', 'Nairobi', 1, { welcome: 3 }),
 ] };

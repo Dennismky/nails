@@ -41,6 +41,16 @@
     startDate: isoDate(i.startDate), endDate: isoDate(i.endDate), schedule: str(i.schedule, 120),
     location: str(i.location, 160), fee: str(i.fee, 80), seats: str(i.seats, 40), published: bool(i.published, true),
   });
+  const money = (v) => { const n = Math.round(Number(String(v ?? '').replace(/[^\d.]/g, ''))); return Number.isFinite(n) && n > 0 ? Math.min(n, 10_000_000) : 0; };
+  const cleanService = (i, id) => ({
+    id, title: str(i.title, 120) || 'Untitled service', description: str(i.description, 1500), price: str(i.price, 60),
+    duration: str(i.duration, 40), image: cleanImage(i.image), published: bool(i.published, true),
+  });
+  const cleanProduct = (i, id) => ({
+    id, title: str(i.title, 120) || 'Untitled product', description: str(i.description, 1500), category: str(i.category, 60),
+    price: money(i.price), image: cleanImage(i.image), stock: ['in', 'low', 'out'].includes(i.stock) ? i.stock : 'in',
+    published: bool(i.published, true),
+  });
   const cleanSite = (s) => ({
     name: str(s.name, 80) || 'Maridadi Nail Academy',
     tagline: str(s.tagline, 160),
@@ -50,7 +60,7 @@
     classesNote: str(s.classesNote, 600),
     whatsapp: str(s.whatsapp, 40), phone: str(s.phone, 40), email: str(s.email, 120),
     tiktok: str(s.tiktok, 120), instagram: str(s.instagram, 120), location: str(s.location, 160),
-    hours: str(s.hours, 160), about: str(s.about, 3000),
+    hours: str(s.hours, 160), about: str(s.about, 3000), shopOpen: bool(s.shopOpen, false),
   });
 
   // ---------- access ----------
@@ -94,6 +104,10 @@
         return { id: d.id, title: d.title, level: d.level, image: d.image, description: open ? d.description : '', free: d.free, locked: !open };
       }),
       progress: user ? progressOf(db, user) : null,
+      services: (db.services || []).filter((x) => x.published),
+      shopOpen: !!(db.site && db.site.shopOpen),
+      // Products only for signed-in, enrolled students while the shop is open.
+      products: user && user.enrolled && db.site && db.site.shopOpen ? (db.products || []).filter((x) => x.published) : [],
     };
   }
 
@@ -137,6 +151,28 @@
   }
   const studentRow = (db, s) => ({ id: s.id, name: s.name, email: s.email, phone: s.phone, location: s.location, picture: s.picture, enrolled: s.enrolled, createdAt: s.createdAt, enrolledAt: s.enrolledAt, lastLogin: s.lastLogin, unlockAll: !!s.unlockAll, summary: progressOf(db, s) });
 
+  // Build an order from what the student sent. Prices always come from the shop, never from the browser.
+  function buildOrder(db, user, items, note, number) {
+    if (!user || !user.enrolled) return { error: 'Please sign in and enroll to shop.' };
+    if (!db.site.shopOpen) return { error: 'The shop is not open yet.' };
+    const lines = [];
+    for (const it of Array.isArray(items) ? items.slice(0, 50) : []) {
+      const p = (db.products || []).find((x) => x.id === it.id && x.published);
+      const qty = Math.max(1, Math.min(99, Math.floor(Number(it.qty) || 0)));
+      if (!p) return { error: 'An item in your cart is no longer available. Remove it and try again.' };
+      if (p.stock === 'out') return { error: `"${p.title}" is out of stock. Remove it and try again.` };
+      if (!p.price) return { error: `"${p.title}" has no price yet. Remove it and ask us on WhatsApp.` };
+      lines.push({ id: p.id, title: p.title, price: p.price, qty });
+    }
+    if (!lines.length) return { error: 'Your cart is empty.' };
+    return { order: {
+      id: Math.random().toString(16).slice(2, 14), number, studentId: user.id, name: user.name, email: user.email, phone: user.phone, location: user.location,
+      items: lines, total: lines.reduce((a, l) => a + l.price * l.qty, 0), note: str(note, 500), status: 'new', createdAt: Date.now(),
+    } };
+  }
+  const ksh = (n) => 'KSh ' + Number(n || 0).toLocaleString('en-KE');
+  const orderText = (o) => [`Order ${o.number}`, ...o.items.map((l) => `${l.qty} × ${l.title} (${ksh(l.price * l.qty)})`), `Total: ${ksh(o.total)}`, o.note ? `Note: ${o.note}` : ''].filter(Boolean).join('\n');
+
   // 0746906609 / +254 746 906609 -> 254746906609 (for wa.me links)
   function waNumber(v) {
     let d = String(v || '').replace(/\D/g, '');
@@ -145,5 +181,5 @@
     return d.length >= 10 ? d : '';
   }
 
-  g.MNACore = { str, cleanUrl, cleanImage, cleanLesson, cleanDesign, cleanClass, cleanSite, canOpen, publicUser, classStatus, progressOf, catalog, lessonFor, designFor, grade, recordScore, studentDetail, studentRow, waNumber };
+  g.MNACore = { cleanService, cleanProduct, buildOrder, ksh, orderText, money, str, cleanUrl, cleanImage, cleanLesson, cleanDesign, cleanClass, cleanSite, canOpen, publicUser, classStatus, progressOf, catalog, lessonFor, designFor, grade, recordScore, studentDetail, studentRow, waNumber };
 })(typeof globalThis !== 'undefined' ? globalThis : window);

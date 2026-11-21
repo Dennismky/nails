@@ -3,7 +3,7 @@
   const { C, esc, renderText, videoInfo, api, MARK, brandHtml, PREVIEW, resizeImage, fmtDate, ICON } = window.MNA;
   const root = document.getElementById('admin-app');
   const $ = (s, el = document) => el.querySelector(s);
-  let data = null, tab = 'students', sel = { lessons: null, designs: null, classes: null }, draft = null, dirty = false, pendingSwitch = null, textMode = 'write', studentId = null, studentQuery = '';
+  let data = null, tab = 'students', orderFilter = 'new', sel = { lessons: null, designs: null, classes: null, services: null, products: null }, draft = null, dirty = false, pendingSwitch = null, textMode = 'write', studentId = null, studentQuery = '';
 
   // ---------- helpers ----------
   const toastEl = document.getElementById('toast');
@@ -56,6 +56,20 @@
       sub: (d) => `${!d.published ? '<span class="badge">Draft</span>' : ''}${d.free ? '<span class="badge free">Free</span>' : ''}${d.image ? '' : '<span class="badge warn">No photo</span>'}${(d.steps || []).length} steps`,
       thumb: (d) => d.image ? `<img class="thumb" src="${esc(d.image)}" alt="">` : '',
     },
+    services: {
+      title: 'Services', one: 'service',
+      blank: () => ({ title: 'New service', price: '', duration: '', description: '', image: '', published: false }),
+      normalise: clone, pack: clone,
+      sub: (x) => `${!x.published ? '<span class="badge">Hidden</span>' : ''}${esc(x.price || 'No price')}`,
+      thumb: (x) => `<img class="thumb" src="${esc(x.image)}" alt="">`,
+    },
+    products: {
+      title: 'Products', one: 'product',
+      blank: () => ({ title: 'New product', category: '', price: '', stock: 'in', description: '', image: '', published: false }),
+      normalise: clone, pack: clone,
+      sub: (x) => `${!x.published ? '<span class="badge">Hidden</span>' : ''}${x.stock === 'out' ? '<span class="badge warn">Out of stock</span>' : x.stock === 'low' ? '<span class="badge">Few left</span>' : ''}${x.price ? C.ksh(x.price) : '<span class="badge warn">No price</span>'}`,
+      thumb: (x) => `<img class="thumb" src="${esc(x.image)}" alt="">`,
+    },
     classes: {
       title: 'Classes', one: 'class',
       blank: () => ({ title: 'New class', description: '', startDate: '', endDate: '', schedule: '', location: data.site.location || '', fee: '', seats: '', published: true }),
@@ -89,7 +103,7 @@
   }
 
   // ---------- layout ----------
-  const TABS = [['students', 'Students'], ['lessons', 'Lessons'], ['designs', 'Art work'], ['classes', 'Classes'], ['site', 'Site & contact'], ['backup', 'Backup']];
+  const TABS = [['students', 'Students'], ['orders', 'Orders'], ['lessons', 'Lessons'], ['designs', 'Art work'], ['services', 'Services'], ['products', 'Products'], ['classes', 'Classes'], ['site', 'Site & contact'], ['backup', 'Backup']];
   function render() {
     root.innerHTML = `<div class="wrap">
       <div class="tabs" role="tablist">${TABS.map(([k, n]) => `<button role="tab" type="button" data-tab="${k}" aria-selected="${tab === k}">${n}</button>`).join('')}</div>
@@ -99,7 +113,7 @@
       tab = b.dataset.tab; draft = null; studentId = null; render();
     }));
     if (KINDS[tab]) kindTab(tab);
-    else ({ students: studentsTab, site: siteTab, backup: backupTab })[tab]();
+    else ({ students: studentsTab, orders: ordersTab, site: siteTab, backup: backupTab })[tab]();
   }
 
   // ---------- list + editor (lessons, designs, classes) ----------
@@ -227,22 +241,35 @@
     if (kind === 'designs') {
       return `<div class="editor-head"><div><div class="eyebrow">Art work</div><h2 id="ed-title">${esc(d.title)}</h2></div>
           <a class="btn btn-ghost btn-sm" href="index.html#design-${esc(d.id)}" target="_blank" rel="noopener">See it as a student</a></div>
-        <div class="photo-edit">
-          <div class="photo-box" id="photo-box">${d.image ? `<img src="${esc(d.image)}" alt="">` : '<span>No photo yet</span>'}</div>
-          <div class="photo-actions">
-            <b>Photo</b><p class="muted small">A clear, well-lit photo of the finished nails. Portrait (taller than wide) looks best. It is resized before upload.</p>
-            <div class="row"><label class="btn btn-primary btn-sm" for="f-photo">${d.image ? 'Replace photo' : 'Upload photo'}</label>
-              <input type="file" id="f-photo" accept="image/jpeg,image/png,image/webp" hidden>
-              ${d.image ? '<button type="button" class="btn btn-ghost btn-sm" id="photo-remove">Remove</button>' : ''}</div>
-            <p class="err" id="photo-err"></p>
-          </div>
-        </div>
+        ${photoEditor(d)}
         <div class="grid3">${input('title', 'Design name', d.title, 'maxlength="120"')}${input('level', 'Level', d.level, 'placeholder="Beginner" maxlength="40"')}${input('time', 'Time', d.time, 'placeholder="45 min" maxlength="40"')}</div>
         <label class="field"><span>Description</span><textarea id="f-description" data-k="description" rows="3" maxlength="2000" placeholder="What the design is and who it suits.">${esc(d.description)}</textarea></label>
         <label class="field"><span>Tools & products needed</span><textarea id="f-tools" data-k="tools" rows="2" maxlength="1000" placeholder="Base gel, white gel, liner brush, top coat, LED lamp">${esc(d.tools)}</textarea></label>
         <label class="field"><span>Steps to follow</span><textarea id="f-steps" data-k="stepsText" rows="9" placeholder="One step per line">${esc(d.stepsText)}</textarea><small id="steps-count">${d.stepsText.split('\n').filter((s) => s.trim()).length} steps · one step per line</small></label>
         <div class="checks">${check('published', 'Show to students', d.published)}${check('free', 'Free for every enrolled student', d.free, 'Otherwise it stays locked until you unlock it for a student.')}</div>
         ${saveBar('design')}`;
+    }
+    if (kind === 'services') {
+      return `<div class="editor-head"><div><div class="eyebrow">Service</div><h2 id="ed-title">${esc(d.title)}</h2></div>
+          <a class="btn btn-ghost btn-sm" href="index.html#services" target="_blank" rel="noopener">See services page</a></div>
+        ${photoEditor(d, 'A photo of this service, e.g. a finished set. Landscape works best.')}
+        <div class="grid3">${input('title', 'Service name', d.title, 'maxlength="120"')}${input('price', 'Price', d.price, 'placeholder="KSh 1,500 or from KSh 1,200" maxlength="60"')}${input('duration', 'Time', d.duration, 'placeholder="1 hr" maxlength="40"')}</div>
+        <label class="field"><span>Description</span><textarea id="f-description" data-k="description" rows="3" maxlength="1500">${esc(d.description)}</textarea></label>
+        <div class="checks">${check('published', 'Show on the website', d.published, 'Anyone can see services. Students book them on WhatsApp.')}</div>
+        ${saveBar('service')}`;
+    }
+    if (kind === 'products') {
+      return `<div class="editor-head"><div><div class="eyebrow">Shop product</div><h2 id="ed-title">${esc(d.title)}</h2></div>
+          <a class="btn btn-ghost btn-sm" href="index.html#shop" target="_blank" rel="noopener">See the shop</a></div>
+        ${data.site.shopOpen ? '' : '<p class="help">The shop is closed, so students see "Coming soon". Open it in Site & contact when your products are ready.</p>'}
+        ${photoEditor(d, 'A clear photo of the product on a plain background. Square works best.')}
+        <div class="grid3">${input('title', 'Product name', d.title, 'maxlength="120"')}
+          <label class="field"><span>Price (KSh)</span><input type="text" inputmode="numeric" id="f-price" data-k="price" value="${esc(d.price || '')}" placeholder="1200"></label>
+          <label class="field"><span>Stock</span><select id="f-stock" data-k="stock"><option value="in" ${d.stock === 'in' ? 'selected' : ''}>In stock</option><option value="low" ${d.stock === 'low' ? 'selected' : ''}>Few left</option><option value="out" ${d.stock === 'out' ? 'selected' : ''}>Out of stock</option></select></label></div>
+        ${input('category', 'Category', d.category, 'placeholder="Gel polish, Tools, Kits" maxlength="60"')}
+        <label class="field"><span>Description</span><textarea id="f-description" data-k="description" rows="3" maxlength="1500">${esc(d.description)}</textarea></label>
+        <div class="checks">${check('published', 'Show in the shop', d.published, 'Only signed-in students see the shop.')}</div>
+        ${saveBar('product')}`;
     }
     const st = C.classStatus(d);
     return `<div class="editor-head"><div><div class="eyebrow">Physical class</div><h2 id="ed-title">${esc(d.title)}</h2></div><span class="badge st-${st} big" id="class-status">${{ ongoing: 'Ongoing now', upcoming: 'Starting soon', tba: 'Incoming: no dates yet', past: 'Finished: hidden from students' }[st]}</span></div>
@@ -254,6 +281,19 @@
       <div class="grid2">${input('fee', 'Fee', d.fee, 'placeholder="KSh 25,000" maxlength="80"')}${input('seats', 'Seats', d.seats, 'placeholder="8 seats left" maxlength="40"')}</div>
       <div class="checks">${check('published', 'Show to students', d.published)}</div>
       ${saveBar('class')}`;
+  }
+
+  function photoEditor(d, hint = 'A clear, well-lit photo. It is resized before upload.') {
+    return `<div class="photo-edit">
+      <div class="photo-box" id="photo-box">${d.image ? `<img src="${esc(d.image)}" alt="">` : '<span>No photo yet</span>'}</div>
+      <div class="photo-actions">
+        <b>Photo</b><p class="muted small">${hint}</p>
+        <div class="row"><label class="btn btn-primary btn-sm" for="f-photo">${d.image ? 'Replace photo' : 'Upload photo'}</label>
+          <input type="file" id="f-photo" accept="image/jpeg,image/png,image/webp" hidden>
+          ${d.image ? '<button type="button" class="btn btn-ghost btn-sm" id="photo-remove">Remove</button>' : ''}</div>
+        <p class="err" id="photo-err"></p>
+      </div>
+    </div>`;
   }
 
   function linkInfo(url) {
@@ -299,7 +339,7 @@
         if (textMode === 'preview') pv.innerHTML = renderText(draft.body);
       }));
     }
-    if (kind === 'designs') {
+    if ($('#f-photo')) {
       $('#f-photo').addEventListener('change', async (e) => {
         const file = e.target.files[0]; if (!file) return;
         $('#photo-err').textContent = '';
@@ -309,7 +349,7 @@
           draft.image = await api.upload(dataUrl);
           $('#photo-box').innerHTML = `<img src="${esc(draft.image)}" alt="">`;
           markDirty(kind);
-          toast('Photo ready. Press "Save design" to keep it.');
+          toast(`Photo ready. Press "Save ${KINDS[kind].one}" to keep it.`);
         } catch (err) { $('#photo-err').textContent = err.message; $('#photo-box').innerHTML = draft.image ? `<img src="${esc(draft.image)}" alt="">` : '<span>No photo yet</span>'; }
       });
       $('#photo-remove')?.addEventListener('click', () => { draft.image = ''; $('#photo-box').innerHTML = '<span>No photo yet</span>'; markDirty(kind); });
@@ -427,6 +467,36 @@
     });
   }
 
+  // ---------- orders ----------
+  const OSTATUS = [['new', 'New'], ['confirmed', 'Confirmed'], ['delivered', 'Delivered'], ['cancelled', 'Cancelled']];
+  async function ordersTab() {
+    const body = $('#tab-body');
+    body.innerHTML = '<p class="muted">Loading orders…</p>';
+    let list;
+    try { list = await api.adminOrders(); } catch (e) { body.innerHTML = `<p class="err">${esc(e.message)}</p>`; return; }
+    const count = (st) => list.filter((o) => o.status === st).length;
+    const shown = orderFilter === 'all' ? list : list.filter((o) => o.status === orderFilter);
+    body.innerHTML = `<div class="panel wide">
+      <div class="editor-head"><h2>Orders</h2>${data.site.shopOpen ? '<span class="badge free big">Shop open</span>' : '<span class="badge big">Shop closed: students see "Coming soon"</span>'}</div>
+      <div class="filters">${[['all', 'All', list.length], ...OSTATUS.map(([k, n]) => [k, n, count(k)])].map(([k, n, c]) => `<button type="button" data-f="${k}" aria-pressed="${orderFilter === k}">${n} <span>${c}</span></button>`).join('')}</div>
+      <div class="orders">${shown.map((o) => {
+        const wa = C.waNumber(o.phone);
+        return `<article class="order-card">
+          <div class="oc-head"><b>${esc(o.number)}</b><span class="muted small">${new Date(o.createdAt).toLocaleString('en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}</span>
+            <select data-order="${esc(o.id)}" aria-label="Status of order ${esc(o.number)}">${OSTATUS.map(([k, n]) => `<option value="${k}" ${o.status === k ? 'selected' : ''}>${n}</option>`).join('')}</select></div>
+          <div class="oc-who"><b>${esc(o.name)}</b><span>${esc(o.phone || '')}${o.location ? ' · ' + esc(o.location) : ''}</span><span class="muted small">${esc(o.email)}</span></div>
+          <ul class="oc-items">${o.items.map((l) => `<li><span>${l.qty} × ${esc(l.title)}</span><span>${C.ksh(l.price * l.qty)}</span></li>`).join('')}</ul>
+          ${o.note ? `<p class="oc-note"><b>Note:</b> ${esc(o.note)}</p>` : ''}
+          <div class="oc-foot"><b>Total ${C.ksh(o.total)}</b>${wa ? `<a class="btn btn-wa btn-sm" href="https://wa.me/${wa}?text=${encodeURIComponent(`Hello ${o.name}, about your order ${o.number} (${C.ksh(o.total)}):`)}" target="_blank" rel="noopener noreferrer">${ICON.whatsapp}<span>WhatsApp customer</span></a>` : ''}</div>
+        </article>`;
+      }).join('') || `<p class="muted">${list.length ? 'No orders with this status.' : 'No orders yet. When a student places an order, it appears here and you get an email.'}</p>`}</div>
+    </div>`;
+    body.querySelectorAll('[data-f]').forEach((b) => b.addEventListener('click', () => { orderFilter = b.dataset.f; ordersTab(); }));
+    body.querySelectorAll('[data-order]').forEach((sel) => sel.addEventListener('change', async () => {
+      try { await api.setOrderStatus(sel.dataset.order, sel.value); toast('Order marked ' + sel.options[sel.selectedIndex].text.toLowerCase()); ordersTab(); } catch (e) { toast(e.message, true); }
+    }));
+  }
+
   // ---------- site & contact ----------
   function siteTab() {
     const s = data.site;
@@ -449,6 +519,8 @@
         <div class="grid2">${f('email', 'Business email', 'hello@yourschool.co.ke', 'email', 'Shown to students. Enrollment emails also go here unless ADMIN_EMAIL is set.')}${f('tiktok', 'TikTok', '@yourschool or full link')}</div>
         <div class="grid2">${f('instagram', 'Instagram', '@yourschool or full link')}${f('location', 'Studio location', 'Nairobi, Kenya')}</div>
         ${f('hours', 'Opening hours', 'Mon – Sat, 9am – 6pm')}</div>
+      <div class="group"><h3>Shop</h3>
+        <label class="check"><input type="checkbox" id="s-shopOpen" ${s.shopOpen ? 'checked' : ''}><span>Shop is open<small>When off, signed-in students see "Products coming soon". Add products in the Products tab first.</small></span></label></div>
       <div class="group"><h3>About page</h3>
         <label class="field"><span>About the school</span><textarea id="s-about" data-s="about" rows="6">${esc(s.about)}</textarea><small>Uses the same formatting as lesson text.</small></label></div>
       <div class="row"><button class="btn btn-primary" type="submit">Save site & contact</button></div>
@@ -457,6 +529,7 @@
       e.preventDefault();
       const next = {};
       root.querySelectorAll('[data-s]').forEach((el) => (next[el.dataset.s] = el.value.trim()));
+      next.shopOpen = $('#s-shopOpen').checked;
       next.whatWeDo = ww.map((_, i) => ({ title: $(`#ww-t${i}`).value.trim(), text: $(`#ww-x${i}`).value.trim() }));
       try { data.site = await api.saveSite(next); brand(); toast('Saved'); } catch (err) { toast(err.message, true); }
     });
@@ -472,19 +545,19 @@
       </ul>
       <div class="row"><button class="btn btn-ghost btn-sm" type="button" id="test-email">Send a test email</button></div>
       <div class="group"><h3>Backup</h3>
-        <p style="margin:0">Download a copy of all lessons, art work, classes and site details. Student accounts are not included.</p>
+        <p style="margin:0">Download a copy of all lessons, art work, services, products, classes and site details. Students and orders are not included.</p>
         <div class="row"><button class="btn btn-primary" type="button" id="dl">Download backup</button>
           <label class="btn btn-ghost" for="up">Load a backup file</label><input type="file" id="up" accept="application/json,.json" hidden></div>
         ${PREVIEW ? '<p class="muted small" style="margin:0">Downloads do not work inside the preview.</p>' : ''}</div>
       <div class="group"><h3>Start over</h3>
-        <p style="margin:0">Replace lessons, art work and classes with the original starting content. Site details and students are kept.</p>
+        <p style="margin:0">Replace lessons, art work, services and classes with the original starting content. Site details, products, students and orders are kept.</p>
         <div class="row"><button class="btn btn-danger" type="button" id="reset">Restore the starting content</button></div></div>
     </div>`;
     $('#test-email').addEventListener('click', async () => { try { const r = await api.testEmail(); toast('Test email sent to ' + r.to); } catch (e) { toast(e.message, true); } });
     $('#dl').addEventListener('click', async () => {
       const d = await api.adminData();
       const a = document.createElement('a');
-      a.href = URL.createObjectURL(new Blob([JSON.stringify({ site: d.site, lessons: d.lessons, designs: d.designs, classes: d.classes }, null, 2)], { type: 'application/json' }));
+      a.href = URL.createObjectURL(new Blob([JSON.stringify({ site: d.site, lessons: d.lessons, designs: d.designs, classes: d.classes, services: d.services, products: d.products }, null, 2)], { type: 'application/json' }));
       a.download = `academy-backup-${new Date().toISOString().slice(0, 10)}.json`;
       document.body.appendChild(a); a.click(); a.remove();
     });
@@ -494,7 +567,7 @@
       catch (err) { toast(err instanceof SyntaxError ? 'That file is not a backup.' : err.message, true); }
     });
     armed($('#reset'), 'Click again to replace the content', async () => {
-      try { await api.reset(); data = await api.adminData(); draft = null; sel = { lessons: null, designs: null, classes: null }; toast('Starting content restored'); tab = 'lessons'; render(); }
+      try { await api.reset(); data = await api.adminData(); draft = null; sel = { lessons: null, designs: null, classes: null, services: null, products: null }; toast('Starting content restored'); tab = 'lessons'; render(); }
       catch (err) { toast(err.message, true); }
     });
   }

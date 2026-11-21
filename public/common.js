@@ -111,6 +111,8 @@
     submit: (id, answers) => http('POST', '/api/lessons/' + encodeURIComponent(id) + '/submit', { answers }),
     design: (id) => http('GET', '/api/designs/' + encodeURIComponent(id)),
     enroll: (form) => http('POST', '/api/enroll', form),
+    placeOrder: (items, note) => http('POST', '/api/orders', { items, note }),
+    myOrders: () => http('GET', '/api/orders/mine'),
     signIn: () => { location.href = '/auth/google'; return new Promise(() => {}); },
     signOut: () => http('POST', '/api/logout'),
     adminMe: () => http('GET', '/api/admin/me'),
@@ -128,6 +130,8 @@
     saveStudent: (id, patch) => http('PUT', '/api/admin/students/' + encodeURIComponent(id), patch),
     removeStudent: (id) => http('DELETE', '/api/admin/students/' + encodeURIComponent(id)),
     testEmail: () => http('POST', '/api/admin/test-email'),
+    adminOrders: () => http('GET', '/api/admin/orders'),
+    setOrderStatus: (id, status) => http('PUT', '/api/admin/orders/' + encodeURIComponent(id), { status }),
     importData: (d) => http('PUT', '/api/admin/import', d),
     reset: () => http('POST', '/api/admin/reset'),
   };
@@ -140,7 +144,7 @@
     const me = (d) => d.students.find((s) => s.id === storage.get(ME, null)) || null;
     const rid = () => Math.random().toString(16).slice(2, 14);
     const fail = (status, data) => { const e = new Error(data.error || 'Locked'); e.status = status; e.data = data; throw e; };
-    const cleaners = { lessons: C.cleanLesson, designs: C.cleanDesign, classes: C.cleanClass };
+    const cleaners = { lessons: C.cleanLesson, designs: C.cleanDesign, classes: C.cleanClass, services: C.cleanService, products: C.cleanProduct };
     const isAdmin = () => !!storage.get(ADMIN, false);
     const guard = () => { if (!isAdmin()) fail(401, { error: 'Please log in as admin.' }); };
     return {
@@ -174,7 +178,16 @@
       async adminMe() { return { admin: isAdmin() }; },
       async adminLogin() { storage.set(ADMIN, true); return { ok: true }; },
       async adminLogout() { storage.del(ADMIN); return { ok: true }; },
-      async adminData() { guard(); const d = load(); return { site: d.site, lessons: d.lessons, designs: d.designs, classes: d.classes, emailReady: false, googleReady: true }; },
+      async adminData() { guard(); const d = load(); return { site: d.site, lessons: d.lessons, designs: d.designs, classes: d.classes, services: d.services || [], products: d.products || [], emailReady: false, googleReady: true }; },
+      async placeOrder(items, note) {
+        const d = load(); d.orders = d.orders || [];
+        const out = C.buildOrder(d, me(d), items, note, 'M-' + (1001 + d.orders.length));
+        if (out.error) fail(400, { error: out.error });
+        d.orders.push(out.order); save(d); return { order: out.order };
+      },
+      async myOrders() { const d = load(), u = me(d); return (d.orders || []).filter((o) => u && o.studentId === u.id).sort((a, b) => b.createdAt - a.createdAt); },
+      async adminOrders() { guard(); return [...(load().orders || [])].sort((a, b) => b.createdAt - a.createdAt); },
+      async setOrderStatus(id, status) { guard(); const d = load(); const o = d.orders.find((x) => x.id === id); o.status = status; save(d); return o; },
       async create(kind, o) { guard(); const d = load(); const n = cleaners[kind](o, rid()); d[kind].push(n); save(d); return n; },
       async save(kind, o) { guard(); const d = load(); const i = d[kind].findIndex((x) => x.id === o.id); d[kind][i] = cleaners[kind](o, o.id); save(d); return d[kind][i]; },
       async remove(kind, id) { guard(); const d = load(); d[kind] = d[kind].filter((x) => x.id !== id); save(d); return { ok: true }; },
@@ -191,8 +204,8 @@
       },
       async removeStudent(id) { guard(); const d = load(); d.students = d.students.filter((s) => s.id !== id); save(d); return { ok: true }; },
       async testEmail() { fail(400, { error: 'Emails are not sent from the preview. They work on the real site once email is set up.' }); },
-      async importData(x) { guard(); const d = load(); save({ ...d, site: C.cleanSite(x.site || d.site), lessons: x.lessons.map((l) => C.cleanLesson(l, l.id || rid())), designs: (x.designs || []).map((l) => C.cleanDesign(l, l.id || rid())), classes: (x.classes || []).map((l) => C.cleanClass(l, l.id || rid())) }); return { ok: true }; },
-      async reset() { guard(); const d = load(); const s = JSON.parse(JSON.stringify(window.__SEED__)); save({ ...s, site: d.site, students: d.students }); return { ok: true }; },
+      async importData(x) { guard(); const d = load(); save({ ...d, services: (x.services || []).map((l) => C.cleanService(l, l.id || rid())), products: (x.products || []).map((l) => C.cleanProduct(l, l.id || rid())), site: C.cleanSite(x.site || d.site), lessons: x.lessons.map((l) => C.cleanLesson(l, l.id || rid())), designs: (x.designs || []).map((l) => C.cleanDesign(l, l.id || rid())), classes: (x.classes || []).map((l) => C.cleanClass(l, l.id || rid())) }); return { ok: true }; },
+      async reset() { guard(); const d = load(); const s = JSON.parse(JSON.stringify(window.__SEED__)); save({ ...s, site: d.site, students: d.students, products: d.products, orders: d.orders }); return { ok: true }; },
     };
   }
   const api = PREVIEW ? previewApi() : serverApi;
@@ -209,6 +222,8 @@
     pin: '<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="1.8" d="M12 21s-7-6.1-7-11.5a7 7 0 0 1 14 0C19 14.9 12 21 12 21z"/><circle cx="12" cy="9.5" r="2.5" fill="none" stroke="currentColor" stroke-width="1.8"/></svg>',
     google: '<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="#4285F4" d="M22.6 12.2c0-.8-.1-1.5-.2-2.2H12v4.2h5.9a5 5 0 0 1-2.2 3.3v2.7h3.6c2-1.9 3.3-4.7 3.3-8z"/><path fill="#34A853" d="M12 23c3 0 5.5-1 7.3-2.7l-3.6-2.8c-1 .7-2.2 1.1-3.7 1.1-2.9 0-5.3-1.9-6.2-4.5H2.1v2.9A11 11 0 0 0 12 23z"/><path fill="#FBBC05" d="M5.8 14.1a6.6 6.6 0 0 1 0-4.2V7H2.1a11 11 0 0 0 0 10l3.7-2.9z"/><path fill="#EA4335" d="M12 5.4c1.6 0 3.1.6 4.2 1.7l3.2-3.2A11 11 0 0 0 2.1 7l3.7 2.9C6.7 7.3 9.1 5.4 12 5.4z"/></svg>',
     calendar: '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="5" width="17" height="15.5" rx="2.5" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M3.5 10h17M8 3v4M16 3v4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>',
+    bag: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 8h14l-1.2 11.2a2 2 0 0 1-2 1.8H8.2a2 2 0 0 1-2-1.8z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M9 8V6.5a3 3 0 0 1 6 0V8" fill="none" stroke="currentColor" stroke-width="1.8"/></svg>',
+    clock: '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8.5" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M12 7.5V12l3 2" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>',
     check: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m5 12.5 4.5 4.5L19 7.5" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>',
   };
   const fmtDate = (iso, opts = { day: 'numeric', month: 'short', year: 'numeric' }) => {
