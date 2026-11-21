@@ -654,6 +654,13 @@
   // ---------- go ----------
   document.getElementById('logout').addEventListener('click', async (e) => { e.preventDefault(); await api.adminLogout().catch(() => {}); data = null; loginView(); });
   document.getElementById('preview-note').hidden = !PREVIEW;
+  if (PREVIEW) {
+    const a = document.createElement('a');
+    a.className = 'preview-switch'; a.href = 'index.html';
+    a.innerHTML = '<span>Preview · you are in the <b>admin</b></span><strong>View site as a client →</strong>';
+    document.body.appendChild(a);
+    document.querySelectorAll('#admin-nav a[target]').forEach((x) => x.removeAttribute('target'));
+  }
   window.addEventListener('beforeunload', (e) => { if (dirty) { e.preventDefault(); e.returnValue = ''; } });
   brand();
   api.adminMe().then((m) => (m.admin ? start() : loginView())).catch(loginView);

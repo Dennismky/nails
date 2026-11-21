@@ -656,3 +656,10 @@ button.contact-card:hover { border-color: var(--lacquer); transform: translateY(
 .intro h1 em { font-family: var(--script); font-style: normal; font-weight: 400; font-size: 1.15em; padding-inline: .04em; }
 .intro .lead { font-size: 1.1rem; font-weight: 300; color: var(--ink-soft); max-width: 52ch; margin: 14px auto 26px; }
 .intro .hero-actions { justify-content: center; }
+
+/* preview only: switch between client and admin */
+.preview-switch { position: fixed; z-index: 70; left: max(12px, env(safe-area-inset-left, 0px)); bottom: calc(12px + env(safe-area-inset-bottom, 0px)); display: flex; flex-wrap: wrap; align-items: center; gap: 4px 12px;
+  max-width: calc(100vw - 24px); padding: 10px 16px; border-radius: 999px; background: #111; color: #fff; text-decoration: none; font-size: .82rem; box-shadow: 0 10px 30px rgb(0 0 0 / .3); border: 1px solid rgb(255 255 255 / .15); }
+.preview-switch span { opacity: .75; }
+.preview-switch strong { font-weight: 600; letter-spacing: .04em; }
+.preview-switch:hover strong { text-decoration: underline; }

@@ -818,7 +818,16 @@
     ({ services: servicesView, shop: shopView, classes: classesView, course: courseView, art: artView, about: aboutView, contact: contactView, enroll: enrollView, me: meView }[h] || home)();
   }
 
-  async function reload() { cat = await api.catalog(); chrome(); updateCartBadge(); }
+  // Preview only: a switch to jump between what clients see and the admin.
+  function previewSwitch() {
+    if (!PREVIEW || document.getElementById('preview-switch')) return;
+    const a = document.createElement('a');
+    a.id = 'preview-switch'; a.className = 'preview-switch'; a.href = 'admin.html';
+    a.innerHTML = '<span>Preview · viewing as a <b>client</b></span><strong>Open admin →</strong>';
+    document.body.appendChild(a);
+  }
+
+  async function reload() { cat = await api.catalog(); chrome(); updateCartBadge(); previewSwitch(); }
 
   reload().then(() => { route(); window.addEventListener('hashchange', route); })
     .catch((e) => { app.innerHTML = `<div class="empty"><h2>We could not load the site</h2><p>${esc(e.message)}</p></div>`; });
