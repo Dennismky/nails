@@ -334,8 +334,10 @@
 
   function artView() {
     const u = me();
-    app.innerHTML = pageHead('Art work', u && u.enrolled ? `Welcome back, ${esc(u.name.split(' ')[0])}` : 'Art work', 'Real designs from our studio. Open a design to see the tools and every step to recreate it.') + `
+    app.innerHTML = pageHead('Art work', u && u.enrolled ? `Welcome back, ${esc(u.name.split(' ')[0])}` : 'Art work', 'Swipe the nails to try each design on, then learn the ones you love step by step.') + `
       <section class="section"><div class="wrap stack-lg">
+        <div class="tryon" id="tryon"></div>
+        <div class="section-head" style="margin:8px 0 0"><div><div class="eyebrow">Step by step</div><h2>Learn the designs</h2></div></div>
         ${!u || !u.enrolled ? accessBanner() : ''}
         <div class="art-grid">${cat.designs.map((d) => `
           <a class="art-card ${d.locked ? 'locked' : ''}" href="${d.locked ? '#' : '#design-' + esc(d.id)}" ${d.locked ? `data-locked="design" data-title="${esc(d.title)}"` : ''}>
@@ -343,6 +345,14 @@
             <span class="art-info"><h3>${esc(d.title)}</h3><span class="meta">${d.level ? `<span>${esc(d.level)}</span>` : ''}${d.free && !d.locked ? '<span class="free-pill">Free</span>' : ''}${d.locked ? '<span class="contact-admin">Contact admin</span>' : ''}</span></span>
           </a>`).join('') || '<p class="muted">New designs are coming soon.</p>'}</div>
       </div></section>`;
+    // Try-on hand at the top: swipe the press-on nails.
+    if (window.MNATryOn) {
+      const ids = cat.designs.map((d) => d.id);
+      window.MNATryOn.mount(document.getElementById('tryon'), {
+        learnIds: ids,
+        onLearn: (id) => { const d = cat.designs.find((x) => x.id === id); if (d && d.locked) lockPopup(d.title, 'design'); else location.hash = 'design-' + id; },
+      });
+    }
   }
 
   async function designView(id) {

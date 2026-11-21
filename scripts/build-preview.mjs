@@ -36,6 +36,7 @@ const inline = (html, { page }) => {
     .replace('<link rel="stylesheet" href="theme.css">\n', '')
     .replace('<script src="core.js"></script>\n', '')
     .replace('<script src="common.js"></script>', () => `${seed}\n<script>${pub('core.js')}</script>\n<script>${pub('common.js')}</script>`)
+    .replace('<script src="tryon.js"></script>', () => `<script>${pub('tryon.js')}</script>`)
     .replace('<script src="app.js"></script>', () => `<script>${pub('app.js')}</script>`)
     .replace('<script src="admin.js"></script>', () => `<script>${pub('admin.js')}</script>`);
   if (page) {
