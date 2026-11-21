@@ -61,6 +61,9 @@
     whatsapp: str(s.whatsapp, 40), phone: str(s.phone, 40), email: str(s.email, 120),
     tiktok: str(s.tiktok, 120), instagram: str(s.instagram, 120), location: str(s.location, 160),
     hours: str(s.hours, 160), about: str(s.about, 3000), shopOpen: bool(s.shopOpen, false),
+    bookFrom: /^\d{2}:\d{2}$/.test(s.bookFrom || '') ? s.bookFrom : '09:00',
+    bookTo: /^\d{2}:\d{2}$/.test(s.bookTo || '') ? s.bookTo : '18:00',
+    closedDays: (Array.isArray(s.closedDays) ? s.closedDays : [0]).map(Number).filter((d) => d >= 0 && d <= 6),
   });
 
   // ---------- access ----------

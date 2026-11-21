@@ -519,6 +519,11 @@
         <div class="grid2">${f('email', 'Business email', 'hello@yourschool.co.ke', 'email', 'Shown to students. Enrollment emails also go here unless ADMIN_EMAIL is set.')}${f('tiktok', 'TikTok', '@yourschool or full link')}</div>
         <div class="grid2">${f('instagram', 'Instagram', '@yourschool or full link')}${f('location', 'Studio location', 'Nairobi, Kenya')}</div>
         ${f('hours', 'Opening hours', 'Mon – Sat, 9am – 6pm')}</div>
+      <div class="group"><h3>Appointments</h3>
+        <p class="muted small" style="margin:0">Customers pick a time inside these hours, and the booking arrives on your WhatsApp.</p>
+        <div class="grid2"><label class="field"><span>First appointment</span><input type="time" id="s-bookFrom" data-s="bookFrom" value="${esc(s.bookFrom || '09:00')}" step="1800"></label>
+          <label class="field"><span>Closing time</span><input type="time" id="s-bookTo" data-s="bookTo" value="${esc(s.bookTo || '18:00')}" step="1800"></label></div>
+        <div class="field"><span>Closed on</span><div class="day-picks">${['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((d, i) => `<label class="day-pick"><input type="checkbox" data-closed="${i}" ${(s.closedDays || []).includes(i) ? 'checked' : ''}><span>${d}</span></label>`).join('')}</div></div></div>
       <div class="group"><h3>Shop</h3>
         <label class="check"><input type="checkbox" id="s-shopOpen" ${s.shopOpen ? 'checked' : ''}><span>Shop is open<small>When off, signed-in students see "Products coming soon". Add products in the Products tab first.</small></span></label></div>
       <div class="group"><h3>About page</h3>
@@ -530,6 +535,7 @@
       const next = {};
       root.querySelectorAll('[data-s]').forEach((el) => (next[el.dataset.s] = el.value.trim()));
       next.shopOpen = $('#s-shopOpen').checked;
+      next.closedDays = [...root.querySelectorAll('[data-closed]:checked')].map((x) => Number(x.dataset.closed));
       next.whatWeDo = ww.map((_, i) => ({ title: $(`#ww-t${i}`).value.trim(), text: $(`#ww-x${i}`).value.trim() }));
       try { data.site = await api.saveSite(next); brand(); toast('Saved'); } catch (err) { toast(err.message, true); }
     });

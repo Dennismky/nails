@@ -1034,7 +1034,7 @@ export function seedCourse() {
       ],
       classesNote: 'New classes are coming soon. Dates will be posted here. Message us on WhatsApp to reserve a seat.',
       whatsapp: '0746906609', phone: '0746906609', email: '', tiktok: '', instagram: '',
-      location: 'Nairobi, Kenya', hours: '',
+      location: 'Nairobi, Kenya', hours: '', bookFrom: '09:00', bookTo: '18:00', closedDays: [0],
       about: '"Maridadi" means beautiful and elegant in Swahili. We teach everything a professional nail technician needs: safety, technique, artistry and business.',
     },
     lessons: lessons.map((l, i) => ({ videoUrl: '', linkLabel: '', published: true, free: i === 0, ...l })),

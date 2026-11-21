@@ -24,7 +24,7 @@ arrange payment yourself.
 | Lessons | Text, video link, the 5 quiz questions, order (drag or ↑ ↓), "free for every student", draft/published. |
 | Art work | Upload a photo, write the description, tools and steps (one per line), free or locked. |
 | Orders | Shop orders: customer, items, total, note. Mark them new, confirmed, delivered or cancelled, and WhatsApp the customer. |
-| Services | Your services with photo, price and time. Anyone can see them and book on WhatsApp. |
+| Services | Your services with photo, price and time. Anyone can book an appointment: they pick a service, day and time, and the booking arrives on your WhatsApp. Set booking hours and closed days in Site & contact. |
 | Products | Shop items with photo, price (KSh), category and stock. |
 | Classes | Physical classes with start/end dates. No date shows as "Incoming", and finished classes hide themselves. |
 | Site & contact | The **Shop open** switch (students see "Coming soon" until it is on), school name, home page text, what we do, WhatsApp, email, phone, TikTok, Instagram, About. |

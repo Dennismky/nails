@@ -192,3 +192,10 @@
 .oc-items li span:last-child { font-variant-numeric: tabular-nums; }
 .oc-note { margin: 0; font-size: .9rem; padding: 8px 10px; border-radius: 8px; background: var(--tip); }
 .oc-foot { display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; padding-top: 8px; border-top: 1px solid var(--line); }
+
+.day-picks { display: flex; flex-wrap: wrap; gap: 6px; }
+.day-pick { position: relative; }
+.day-pick input { position: absolute; opacity: 0; inset: 0; cursor: pointer; }
+.day-pick span { display: block; padding: 7px 12px; border-radius: 99px; border: 1.5px solid var(--line); font-weight: 700; font-size: .88rem; }
+.day-pick input:checked + span { background: var(--ink); color: var(--bg); border-color: var(--ink); }
+.day-pick input:focus-visible + span { outline: 3px solid var(--gold); outline-offset: 2px; }

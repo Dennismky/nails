@@ -175,7 +175,8 @@
           <h1>${esc(words.join(' '))} <em>${esc(last)}</em></h1>
           <p class="lead">${esc(s.heroText)}</p>
           <div class="hero-actions">
-            <a class="btn btn-primary" href="#classes">See our classes</a>
+            <button type="button" class="btn btn-primary" data-book="">${ICON.calendar}<span>Book appointment</span></button>
+            <a class="btn btn-ghost" href="#classes">See our classes</a>
             ${u ? `<a class="btn btn-ghost" href="${u.enrolled ? '#art' : '#enroll'}">${u.enrolled ? 'Go to art work' : 'Finish enrolling'}</a>` : googleButton('Start Lesson 1 free')}
           </div>
         </div>
@@ -447,6 +448,78 @@
     setTimeout(() => layer.remove(), 4200);
   }
 
+  // ---------- booking (sends a ready-made message on WhatsApp) ----------
+  const pad = (n) => String(n).padStart(2, '0');
+  const localISO = (d) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+  const toMin = (t) => { const [h, m] = String(t).split(':').map(Number); return h * 60 + m; };
+  const label12 = (min) => { const h = Math.floor(min / 60), m = min % 60; return `${((h + 11) % 12) + 1}:${pad(m)} ${h < 12 ? 'am' : 'pm'}`; };
+  function timeSlots(dateIso) {
+    const s = site(), from = toMin(s.bookFrom || '09:00'), to = toMin(s.bookTo || '18:00');
+    const now = new Date(), today = localISO(now) === dateIso, nowMin = now.getHours() * 60 + now.getMinutes() + 60;
+    const out = [];
+    for (let t = from; t <= to - 30; t += 30) if (!today || t >= nowMin) out.push(t);
+    return out;
+  }
+  const isClosed = (iso) => (site().closedDays || []).includes(new Date(iso + 'T12:00:00').getDay());
+  function nextOpenDay() { const d = new Date(); for (let i = 0; i < 14; i++) { const iso = localISO(d); if (!isClosed(iso) && timeSlots(iso).length) return iso; d.setDate(d.getDate() + 1); } return localISO(new Date()); }
+
+  function bookingModal(service = '') {
+    const u = me(), services = cat.services;
+    if (!C.waNumber(site().whatsapp)) { openModal('<h2 id="modal-title">Booking is coming soon</h2><p>Online booking opens as soon as our WhatsApp number is added.</p>'); return; }
+    const day = nextOpenDay();
+    const max = new Date(); max.setDate(max.getDate() + 90);
+    const days = ['Sundays', 'Mondays', 'Tuesdays', 'Wednesdays', 'Thursdays', 'Fridays', 'Saturdays'];
+    const closedText = (site().closedDays || []).map((d) => days[d]).join(' and ');
+    openModal(`<form class="book-form" id="book-form" novalidate>
+      <div class="eyebrow">Book an appointment</div>
+      <h2 id="modal-title">Pick a time</h2>
+      <p class="book-sub">We open WhatsApp with your booking written out. Just press send, and we confirm your slot.</p>
+      <label class="field"><span>Service</span><select id="b-service" required>
+        ${services.map((x) => `<option ${x.title === service ? 'selected' : ''}>${esc(x.title)}</option>`).join('')}<option ${service && !services.some((x) => x.title === service) ? 'selected' : ''}>Something else</option></select></label>
+      <div class="grid2b">
+        <label class="field"><span>Date</span><input type="date" id="b-date" value="${day}" min="${localISO(new Date())}" max="${localISO(max)}" required></label>
+        <label class="field"><span>Time</span><select id="b-time" required></select></label>
+      </div>
+      <p class="hint" id="b-hint">${closedText ? `We are closed on ${closedText}.` : ''} Open ${label12(toMin(site().bookFrom || '09:00'))} – ${label12(toMin(site().bookTo || '18:00'))}.</p>
+      <label class="field"><span>Your name</span><input type="text" id="b-name" value="${esc(u ? u.name : '')}" autocomplete="name" required maxlength="80"></label>
+      <label class="field"><span>Phone</span><input type="tel" id="b-phone" value="${esc(u ? u.phone || '' : '')}" placeholder="07XX XXX XXX" autocomplete="tel" required maxlength="40"></label>
+      <label class="field"><span>Note (optional)</span><textarea id="b-note" rows="2" maxlength="300" placeholder="Design idea, nail length, or anything we should know"></textarea></label>
+      <p class="err" id="b-err"></p>
+      <button type="submit" class="btn btn-wa">${ICON.whatsapp}<span>Book on WhatsApp</span></button>
+      <div id="b-done"></div>
+    </form>`);
+    const $b = (id) => document.getElementById(id);
+    const fillTimes = () => {
+      const iso = $b('b-date').value, sel = $b('b-time'), keep = sel.value;
+      const slots = iso && !isClosed(iso) ? timeSlots(iso) : [];
+      sel.innerHTML = slots.length ? slots.map((t) => `<option value="${t}">${label12(t)}</option>`).join('') : '<option value="">No times this day</option>';
+      if (slots.includes(Number(keep))) sel.value = keep;
+      sel.disabled = !slots.length;
+    };
+    fillTimes();
+    $b('b-date').addEventListener('change', fillTimes);
+    $b('book-form').addEventListener('submit', (e) => {
+      e.preventDefault();
+      const err = $b('b-err'); err.textContent = '';
+      const iso = $b('b-date').value, time = $b('b-time').value, name = $b('b-name').value.trim(), phone = $b('b-phone').value.trim();
+      if (!iso || isClosed(iso)) return (err.textContent = 'Please pick a day we are open.');
+      if (!time) return (err.textContent = 'Please pick a time.');
+      if (!name) return (err.textContent = 'Please add your name.');
+      if (phone.replace(/\D/g, '').length < 9) return (err.textContent = 'Please add a phone number we can reach you on.');
+      const note = $b('b-note').value.trim();
+      const msg = ['Hello! I would like to book an appointment.', '', `Service: ${$b('b-service').value}`,
+        `Date: ${fmtDate(iso, { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}`, `Time: ${label12(Number(time))}`,
+        `Name: ${name}`, `Phone: ${phone}`, note ? `Note: ${note}` : ''].filter((x) => x !== '').join('\n');
+      const url = contactLinks(site(), msg).whatsapp;
+      window.open(url, '_blank', 'noopener');
+      $b('b-done').innerHTML = `<div class="book-done">${ICON.check}<div><b>Your booking is ready in WhatsApp.</b><span>Press send there and we will confirm. Did WhatsApp not open? <a href="${esc(url)}" target="_blank" rel="noopener noreferrer">Tap here</a>.</span></div></div>`;
+    });
+  }
+  document.addEventListener('click', (e) => {
+    const b = e.target.closest('[data-book]');
+    if (b) { e.preventDefault(); bookingModal(b.dataset.book || ''); }
+  });
+
   // ---------- services ----------
   function serviceCard(x) {
     return `<article class="svc-card">
@@ -455,13 +528,14 @@
         <div class="svc-top"><h3>${esc(x.title)}</h3><span class="svc-price">${esc(x.price || 'Price on request')}</span></div>
         ${x.duration ? `<span class="svc-time">${ICON.clock}<span>${esc(x.duration)}</span></span>` : ''}
         ${x.description ? `<p>${esc(x.description)}</p>` : ''}
-        <div class="svc-cta">${contactButtons(`Hello, I would like to book: ${x.title}.`, { compact: true, label: 'Book on WhatsApp' })}</div>
+        <div class="svc-cta"><button type="button" class="btn btn-primary btn-sm" data-book="${esc(x.title)}">${ICON.calendar}<span>Book appointment</span></button></div>
       </div>
     </article>`;
   }
   function servicesView() {
-    app.innerHTML = pageHead('Services', 'Our services', 'Book a nail appointment at our studio. Tap a service to book it on WhatsApp.') + `
-      <section class="section"><div class="wrap">
+    app.innerHTML = pageHead('Services', 'Our services', 'Book a nail appointment at our studio. Pick a service, a day and a time, and send it to us on WhatsApp.') + `
+      <section class="section"><div class="wrap stack-lg">
+        <div class="banner"><div><b>Ready for new nails?</b> Book in under a minute. We confirm on WhatsApp.</div><button type="button" class="btn btn-primary btn-sm" data-book="">${ICON.calendar}<span>Book appointment</span></button></div>
         <div class="svc-grid">${cat.services.map(serviceCard).join('') || '<p class="muted">Our service list is coming soon.</p>'}</div>
       </div></section>`;
   }
