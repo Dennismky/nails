@@ -172,10 +172,9 @@
     const cls = cat.classes.slice(0, 3);
     app.innerHTML = `
       <section class="stage" id="stage" aria-label="${esc(s.name)}">
-        <video class="stage-video" muted playsinline preload="auto" poster="img/hero-poster.jpg" aria-hidden="true">
-          <source src="img/hero-1024.mp4" type="video/mp4" media="(max-width: 900px)">
-          <source src="img/hero-1920.mp4" type="video/mp4">
-        </video>
+        <video class="stage-video" autoplay muted playsinline webkit-playsinline disablepictureinpicture disableremoteplayback controlslist="nodownload nofullscreen noremoteplayback noplaybackrate" preload="auto" poster="img/hero-start.jpg" tabindex="-1" aria-hidden="true">
+</video>
+        <span class="stage-burst" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></span>
         <figure class="stage-card">${s.heroImage ? `<img src="${esc(s.heroImage)}" alt="${esc(s.name)} logo">` : `<span class="stage-wordmark">${brandHtml(s.name)}</span>`}</figure>
       </section>
 
@@ -215,7 +214,7 @@
 
   // ---------- home stage: the rabbit video points at the logo card ----------
   // Where the rabbit is in the video (fractions of the 1920x1080 frame), measured from its last frame.
-  const RABBIT = { finger: { x: 0.578, y: 0.434 }, right: 0.87, top: 0.05, pointAt: 1.85 };
+  const RABBIT = { finger: { x: 0.578, y: 0.434 }, right: 0.87, top: 0.05, pointAt: 1.8 };
   let stageObserver = null;
   function layoutStage() {
     const st = document.getElementById('stage');
@@ -239,25 +238,46 @@
     card.style.width = w + 'px';
     card.style.left = Math.max(m * 0.5, fx - gap - w) + 'px';
     card.style.top = Math.min(Math.max(fy - h / 2, m), Ch - h - m) + 'px';
+    const burst = st.querySelector('.stage-burst');
+    if (burst) {
+      burst.style.setProperty('--bx', parseFloat(card.style.left) + w / 2 + 'px');
+      burst.style.setProperty('--by', parseFloat(card.style.top) + h / 2 + 'px');
+      burst.style.setProperty('--bw', w * 1.15 + 'px');
+    }
   }
   function startStage() {
     const st = document.getElementById('stage');
     if (!st) return;
     const v = st.querySelector('video');
-    const pointed = () => st.classList.add('pointed');
+    let revealed = false;
+    // The surprise: the banner pops up when the rabbit's hand comes up.
+    const reveal = () => { if (revealed) return; revealed = true; layoutStage(); st.classList.add('pointed'); };
+    // Fallback when the video cannot play at all: show the last frame (rabbit pointing) and the banner.
+    const showEnd = () => { v.poster = 'img/hero-poster.jpg'; try { v.pause(); if (v.duration) v.currentTime = v.duration; } catch {} reveal(); };
     layoutStage();
     st.querySelector('.stage-card img')?.addEventListener('load', layoutStage);
     if (stageObserver) stageObserver.disconnect();
     stageObserver = new ResizeObserver(layoutStage);
     stageObserver.observe(st);
-    // The rabbit walks in once and stays pointing; the poster is that last frame.
-    if (matchMedia('(prefers-reduced-motion: reduce)').matches) { pointed(); return; }
-    v.addEventListener('timeupdate', () => { if (v.currentTime >= RABBIT.pointAt) pointed(); });
-    v.addEventListener('ended', pointed);
-    v.addEventListener('error', pointed, true);
-    const p = v.play();
-    if (p && p.catch) p.catch(pointed); // autoplay blocked (e.g. power saving): show the last frame and the card
-    setTimeout(() => { if (v.paused && v.currentTime === 0) pointed(); }, 2500);
+    if (matchMedia('(prefers-reduced-motion: reduce)').matches) { v.removeAttribute('autoplay'); showEnd(); return; }
+
+    // Browsers only autoplay video that is muted and inline; set both as properties too (the attributes alone are not always honoured).
+    v.muted = true; v.defaultMuted = true; v.playsInline = true; v.controls = false;
+    // A lighter file for phones and tablets, full HD for big screens.
+    v.src = Math.max(innerWidth, innerHeight) * (devicePixelRatio > 1.5 ? 0.75 : 1) <= 1100 ? 'img/hero-1024.mp4' : 'img/hero-1920.mp4';
+    // Check the video time on every screen refresh so the banner pops exactly as the hand comes up.
+    const watch = () => { if (revealed || !st.isConnected) return; if (v.currentTime >= RABBIT.pointAt) reveal(); else requestAnimationFrame(watch); };
+    requestAnimationFrame(watch);
+    v.addEventListener('ended', reveal);
+    v.addEventListener('error', showEnd);
+    const tryPlay = () => { const p = v.play(); return p && p.catch ? p : Promise.resolve(); };
+    tryPlay().catch(() => {
+      // Autoplay blocked (some browsers, power saving): start on the visitor's first touch, scroll, click or key.
+      const events = ['pointerdown', 'touchstart', 'keydown', 'scroll', 'wheel'];
+      const go = () => { events.forEach((e) => removeEventListener(e, go, true)); clearTimeout(t); tryPlay().catch(showEnd); };
+      events.forEach((e) => addEventListener(e, go, { capture: true, passive: true }));
+      const t = setTimeout(() => { events.forEach((e) => removeEventListener(e, go, true)); if (v.paused) showEnd(); }, 6000);
+    });
   }
 
   const pageHead = (eyebrow, title, text) => `<section class="page-head"><div class="wrap"><div class="eyebrow">${eyebrow}</div><h1>${title}</h1>${text ? `<p>${text}</p>` : ''}</div></section>`;

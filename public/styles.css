@@ -600,18 +600,55 @@ button.contact-card:hover { border-color: var(--lacquer); transform: translateY(
 /* ---------- home stage: rabbit video + the logo card it points at ---------- */
 .stage { position: relative; width: 100%; aspect-ratio: 16 / 9; max-height: calc(100vh - 70px); min-height: 260px; overflow: hidden; background: #cf0140; isolation: isolate; }
 .stage-video { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; display: block; }
+.stage-video { pointer-events: none; -webkit-user-select: none; user-select: none; }
+/* never show the browser's play buttons or controls over the video */
+.stage-video::-webkit-media-controls, .stage-video::-webkit-media-controls-panel, .stage-video::-webkit-media-controls-enclosure,
+.stage-video::-webkit-media-controls-play-button, .stage-video::-webkit-media-controls-start-playback-button,
+.stage-video::-webkit-media-controls-overlay-play-button, .stage-video::-webkit-media-controls-overlay-enclosure { display: none !important; -webkit-appearance: none; opacity: 0 !important; }
+
+/* the banner: hidden until the rabbit points, then it emerges by rising contrast and pops into place */
 .stage-card { position: absolute; margin: 0; z-index: 2; border-radius: 14px; overflow: hidden; background: #000;
-  border: 1px solid rgb(255 255 255 / .18); box-shadow: 0 30px 60px rgb(60 0 20 / .45), 0 2px 0 rgb(255 255 255 / .06) inset;
-  opacity: 0; transform: translateX(-24px) scale(.94); transition: opacity .7s ease, transform .9s cubic-bezier(.2, .8, .2, 1); }
+  border: 1px solid rgb(255 255 255 / .2); box-shadow: 0 30px 70px rgb(60 0 20 / .5), 0 0 0 1px rgb(255 255 255 / .04) inset;
+  opacity: 0; transform: scale(.5); filter: contrast(0) brightness(2.2) blur(8px); will-change: transform, filter, opacity; }
 .stage-card img { display: block; width: 100%; height: auto; }
-.stage-card::after { content: ""; position: absolute; inset: 0; background: linear-gradient(105deg, transparent 35%, rgb(255 255 255 / .18) 48%, transparent 60%); background-size: 250% 100%; background-position: 120% 0; pointer-events: none; }
-.stage.pointed .stage-card { opacity: 1; transform: none; }
-.stage.pointed .stage-card::after { animation: sheen 6s ease-in-out 1s infinite; }
+.stage.pointed .stage-card { animation: surprise 1.5s cubic-bezier(.2, .9, .25, 1) forwards, floaty 5s ease-in-out 1.6s infinite; }
+@keyframes surprise {
+  0%   { opacity: 0; transform: scale(.5) rotate(-6deg); filter: contrast(0) brightness(2.4) blur(10px); }
+  18%  { opacity: .55; filter: contrast(.15) brightness(2) blur(6px); }
+  45%  { opacity: 1; transform: scale(1.1) rotate(1.5deg); filter: contrast(.55) brightness(1.5) blur(2px); }
+  68%  { transform: scale(.96) rotate(-.5deg); filter: contrast(1.35) brightness(1.08) blur(0); }
+  84%  { transform: scale(1.02); filter: contrast(1.1) brightness(1); }
+  100% { opacity: 1; transform: none; filter: none; }
+}
+@keyframes floaty { 0%, 100% { translate: 0 0; } 50% { translate: 0 -6px; } }
+.stage-card::after { content: ""; position: absolute; inset: 0; background: linear-gradient(105deg, transparent 35%, rgb(255 255 255 / .22) 48%, transparent 60%); background-size: 250% 100%; background-position: 120% 0; pointer-events: none; }
+.stage.pointed .stage-card::after { animation: sheen 5s ease-in-out 1.2s infinite; }
+
+/* burst of light and sparkles around the banner as it appears */
+.stage-burst { position: absolute; z-index: 1; pointer-events: none; left: var(--bx, 30%); top: var(--by, 45%); width: 0; height: 0; }
+.stage-burst::before { content: ""; position: absolute; left: 50%; top: 50%; width: var(--bw, 300px); height: var(--bw, 300px); margin: calc(var(--bw, 300px) / -2) 0 0 calc(var(--bw, 300px) / -2);
+  border-radius: 50%; border: 2px solid rgb(255 255 255 / .9); box-shadow: 0 0 40px 8px rgb(255 255 255 / .55); opacity: 0; transform: scale(.2); }
+.stage.pointed .stage-burst::before { animation: ring 1.1s ease-out .35s forwards; }
+@keyframes ring { 0% { opacity: .95; transform: scale(.2); } 100% { opacity: 0; transform: scale(1.35); } }
+.stage-burst i { position: absolute; left: 0; top: 0; width: 10px; height: 10px; margin: -5px; opacity: 0;
+  background: radial-gradient(circle, #fff 0 30%, transparent 70%); clip-path: polygon(50% 0, 62% 38%, 100% 50%, 62% 62%, 50% 100%, 38% 62%, 0 50%, 38% 38%); }
+.stage.pointed .stage-burst i { animation: spark 1.2s ease-out .4s forwards; }
+.stage-burst i:nth-child(1) { --dx: 0; --dy: -1; } .stage-burst i:nth-child(2) { --dx: .7; --dy: -.7; } .stage-burst i:nth-child(3) { --dx: 1; --dy: 0; }
+.stage-burst i:nth-child(4) { --dx: .7; --dy: .7; } .stage-burst i:nth-child(5) { --dx: 0; --dy: 1; } .stage-burst i:nth-child(6) { --dx: -.7; --dy: .7; }
+.stage-burst i:nth-child(7) { --dx: -1; --dy: 0; } .stage-burst i:nth-child(8) { --dx: -.7; --dy: -.7; animation-delay: .5s; }
+@keyframes spark {
+  0% { opacity: 0; transform: translate(0, 0) scale(.3) rotate(0); }
+  25% { opacity: 1; }
+  100% { opacity: 0; transform: translate(calc(var(--dx) * var(--bw, 300px) * .75), calc(var(--dy) * var(--bw, 300px) * .55)) scale(1.6) rotate(90deg); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .stage.pointed .stage-card { animation: none; opacity: 1; transform: none; filter: none; }
+}
 .stage-wordmark { display: grid; place-items: center; aspect-ratio: 16 / 9; color: #fff; }
 .stage-wordmark .wordmark .wm-script { font-size: clamp(2rem, 6vw, 4.5rem); }
 .stage-wordmark .wordmark .wm-caps { font-size: clamp(.6rem, 1.2vw, 1rem); }
 @media (max-width: 900px) { .stage { aspect-ratio: 4 / 3; } }
-@media (max-width: 560px) { .stage { aspect-ratio: 5 / 4; } .stage-card { border-radius: 10px; } }
+@media (max-width: 560px) { .stage { aspect-ratio: 5 / 4; } .stage-card { border-radius: 10px; } .stage-burst i { width: 7px; height: 7px; margin: -3.5px; } }
 
 .intro { padding-block: clamp(36px, 6vw, 72px) clamp(28px, 4vw, 48px); text-align: center; }
 .intro .wrap { display: grid; justify-items: center; gap: 4px; }
