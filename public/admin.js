@@ -618,6 +618,8 @@
       <h2>Setup</h2>
       <ul class="setup">
         <li class="${data.googleReady ? 'ok' : ''}"><b>Google sign-in</b><span>${data.googleReady ? 'On' : 'Off: add GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET (see README).'}</span></li>
+        ${PREVIEW ? '' : `<li class="${data.storage === 'redis' || !data.onVercel ? 'ok' : ''}"><b>Database</b><span>${data.storage === 'redis' ? 'Connected (Upstash Redis)' : data.onVercel ? 'Not connected: add Upstash for Redis in Vercel > Storage, then redeploy. Nothing is being saved.' : 'Files on this computer (the data folder)'}</span></li>`}
+        ${data.testSignin && !PREVIEW ? '<li><b>Test sign-in is on</b><span>"Sign in" makes a test student. Add Google keys (or remove TEST_SIGNIN) before real students arrive.</span></li>' : ''}
         <li class="${data.emailReady || PREVIEW ? 'ok' : ''}"><b>Enrollment emails</b><span>${PREVIEW ? 'Works on the real site' : data.emailReady ? 'On' : 'Off: add the SMTP settings (see README).'}</span></li>
       </ul>
       <div class="row"><button class="btn btn-ghost btn-sm" type="button" id="test-email">Send a test email</button></div>

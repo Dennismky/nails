@@ -72,7 +72,10 @@ in Google Cloud (see below) and start with `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT
 | `ADMIN_EMAIL` | Where enrollment emails go. Defaults to the business email in Site & contact. |
 | `OWNER_PASSWORD` | Optional. Your own password for the Brand tab. When it is set, the client's `ADMIN_PASSWORD` cannot change colours or logo. |
 | `SESSION_SECRET` | A long random string that signs logins. Set it in production. |
-| `DATA_DIR` | Where lessons, students and photos are saved (default `./data`). Must be a persistent disk. |
+| `DATA_DIR` | Where lessons, students and photos are saved when there is no database (default `./data`). Must be a persistent disk. |
+| `KV_REST_API_URL`, `KV_REST_API_TOKEN` | Upstash Redis (added by Vercel). When set, everything is saved there instead of files. |
+| `STORE_PREFIX` | Optional. Keeps several websites apart in one database (default `elan:`). |
+| `TEST_SIGNIN` | `1` lets "Sign in" make test students online while Google sign-in is not set up. Remove before going live. |
 | `PORT` | Default 4000. |
 
 ### Google sign-in
@@ -112,7 +115,28 @@ Each client gets their own copy: their own data, admin password and domain.
 
 A new copy starts with the sample content and Maridadi's details, so change them before you hand it over.
 
-## Putting it online
+## Host it on Vercel (free address, no domain needed)
+
+1. Go to https://vercel.com, log in with GitHub, and choose **Add New → Project**.
+2. Import the **Dennismky/nails** repository. Leave the settings as they are (no framework, no build command)
+   and press **Deploy**. You get an address like `elan-beauty.vercel.app`.
+3. Add the database: in the project open **Storage → Create Database → Upstash for Redis** (free plan) and
+   connect it to the project. Vercel adds the `KV_REST_API_URL` and `KV_REST_API_TOKEN` settings for you.
+4. In **Settings → Environment Variables** add:
+   - `ADMIN_PASSWORD`: the admin password
+   - `OWNER_PASSWORD`: your own password for the Brand tab (optional)
+   - `SESSION_SECRET`: any long random text
+   - `TEST_SIGNIN` = `1` while you test without Google keys (remove it before real students arrive)
+5. **Deployments → ⋯ → Redeploy** so the new settings apply.
+6. Open `https://<your-app>.vercel.app/admin`. In **Backup → Setup**, "Database: Connected" means everything is saved.
+
+Later: add Google sign-in (`GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, redirect URI
+`https://<your-app>.vercel.app/auth/google/callback`), the email settings, and your own domain under
+**Settings → Domains**. Set `BASE_URL` to the domain you use.
+
+Photos are kept in the database too, so keep them reasonably small (the admin resizes them before upload).
+
+## Putting it online elsewhere
 
 Use a host that runs Node.js and keeps files (a VPS, or Render/Railway with a disk attached). Point `DATA_DIR`
 at the disk, set the settings above, serve over HTTPS, and run `node server.js`.

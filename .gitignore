@@ -1,2 +1,4 @@
 data/
 preview/
+.vercel/
+node_modules/
