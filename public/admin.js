@@ -572,7 +572,7 @@
                   <p class="err" id="b-logo-err"></p></div></div></div>
             <div class="group"><h3>Home page picture</h3>
               <div class="photo-edit"><div class="photo-box hero-box" id="hero-box">${b.heroImage ? `<img src="${esc(b.heroImage)}" alt="">` : '<span>Painted-nails drawing</span>'}</div>
-                <div class="photo-actions"><p class="muted small">Shown large on the black band at the top of the home page. A logo or photo on a black background blends in best.</p>
+                <div class="photo-actions"><p class="muted small">Shown in the card the rabbit points at, at the top of the home page. A logo on a black background looks best.</p>
                   <div class="row"><label class="btn btn-primary btn-sm" for="b-hero">${b.heroImage ? 'Replace picture' : 'Upload picture'}</label><input type="file" id="b-hero" accept="image/png,image/jpeg,image/webp" hidden>${b.heroImage ? '<button type="button" class="btn btn-ghost btn-sm" id="b-hero-remove">Use the drawing</button>' : ''}</div>
                   <p class="err" id="b-hero-err"></p></div></div></div>
           </div>

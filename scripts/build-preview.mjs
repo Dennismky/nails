@@ -48,4 +48,7 @@ const inline = (html, { page }) => {
 };
 fs.writeFileSync(path.join(out, 'index.html'), inline(pub('index.html'), { page: true }));
 fs.writeFileSync(path.join(out, 'admin.html'), inline(pub('admin.html'), { page: false }));
+// The home page video and its still frame are separate files next to the page.
+fs.mkdirSync(path.join(out, 'img'), { recursive: true });
+for (const f of ['hero-1024.mp4', 'hero-1920.mp4', 'hero-poster.jpg']) fs.copyFileSync(path.join(root, 'public/img', f), path.join(out, 'img', f));
 console.log('Preview written to', out);

@@ -171,18 +171,22 @@
     const last = words.pop();
     const cls = cat.classes.slice(0, 3);
     app.innerHTML = `
-      <section class="hero"><div class="wrap">
-        <div class="hero-copy">
-          <div class="eyebrow">${esc(s.tagline || 'Nail school · Kenya')}</div>
-          <h1>${esc(words.join(' '))} <em>${esc(last)}</em></h1>
-          <p class="lead">${esc(s.heroText)}</p>
-          <div class="hero-actions">
-            <button type="button" class="btn btn-primary" data-book="">${ICON.calendar}<span>Book appointment</span></button>
-            <a class="btn btn-ghost" href="#classes">See our classes</a>
-            ${u ? `<a class="btn btn-ghost" href="${u.enrolled ? '#art' : '#enroll'}">${u.enrolled ? 'Go to art work' : 'Finish enrolling'}</a>` : googleButton('Start Lesson 1 free')}
-          </div>
+      <section class="stage" id="stage" aria-label="${esc(s.name)}">
+        <video class="stage-video" muted playsinline preload="auto" poster="img/hero-poster.jpg" aria-hidden="true">
+          <source src="img/hero-1024.mp4" type="video/mp4" media="(max-width: 900px)">
+          <source src="img/hero-1920.mp4" type="video/mp4">
+        </video>
+        <figure class="stage-card">${s.heroImage ? `<img src="${esc(s.heroImage)}" alt="${esc(s.name)} logo">` : `<span class="stage-wordmark">${brandHtml(s.name)}</span>`}</figure>
+      </section>
+
+      <section class="intro"><div class="wrap">
+        <div class="eyebrow">${esc(s.tagline || 'Nail studio · Kenya')}</div>
+        <h1>${esc(words.join(' '))} <em>${esc(last)}</em></h1>
+        <p class="lead">${esc(s.heroText)}</p>
+        <div class="hero-actions">
+          <button type="button" class="btn btn-primary" data-book="">${ICON.calendar}<span>Book appointment</span></button>
+          <a class="btn btn-ghost" href="#classes">See our classes</a>
         </div>
-        <div class="hero-art">${s.heroImage ? `<figure class="hero-logo"><img src="${esc(s.heroImage)}" alt="${esc(s.name)}" fetchpriority="high"></figure><span class="sparkle-dot" style="top:18%;left:12%"></span><span class="sparkle-dot" style="top:70%;left:86%;animation-delay:1.2s"></span><span class="sparkle-dot" style="top:30%;left:92%;animation-delay:2.1s"></span>` : heroArt()}</div>
       </div></section>
 
       ${offerGrid() ? `<section class="section"><div class="wrap">
@@ -206,6 +210,54 @@
           <div class="cta-actions">${contactButtons('Hello, I have a question about the nail classes.') || '<a class="btn btn-primary" href="#contact">Contact us</a>'}</div>
         </div>
       </div></section>`;
+    startStage();
+  }
+
+  // ---------- home stage: the rabbit video points at the logo card ----------
+  // Where the rabbit is in the video (fractions of the 1920x1080 frame), measured from its last frame.
+  const RABBIT = { finger: { x: 0.578, y: 0.434 }, right: 0.87, top: 0.05, pointAt: 1.85 };
+  let stageObserver = null;
+  function layoutStage() {
+    const st = document.getElementById('stage');
+    if (!st) return;
+    const v = st.querySelector('video'), card = st.querySelector('.stage-card');
+    const Cw = st.clientWidth, Ch = st.clientHeight;
+    // The video covers the stage; work out how big it is drawn and which part is visible.
+    const k = Math.max(Cw / 1920, Ch / 1080), Vw = 1920 * k, Vh = 1080 * k;
+    const m = Math.max(12, Cw * 0.03);
+    // Slide the video so the whole rabbit stays in view on narrow screens, leaving room on its left for the card.
+    const ox = Math.min(Math.max(RABBIT.right * Vw - (Cw - m), 0), Vw - Cw);
+    const oy = Math.min((Vh - Ch) / 2, RABBIT.top * Vh); // never crop the ears
+    v.style.objectPosition = `${Vw > Cw ? (ox / (Vw - Cw)) * 100 : 50}% ${Vh > Ch ? (oy / (Vh - Ch)) * 100 : 50}%`;
+    // The card sits just past the fingertip, centred on the line the finger points along.
+    const fx = RABBIT.finger.x * Vw - ox, fy = RABBIT.finger.y * Vh - oy;
+    const gap = Math.max(10, Vw * 0.014);
+    const img = card.querySelector('img');
+    const ratio = img && img.naturalWidth ? img.naturalHeight / img.naturalWidth : 0.55;
+    const w = Math.max(96, Math.min(fx - gap - m, Vw * 0.36, 620));
+    const h = w * ratio;
+    card.style.width = w + 'px';
+    card.style.left = Math.max(m * 0.5, fx - gap - w) + 'px';
+    card.style.top = Math.min(Math.max(fy - h / 2, m), Ch - h - m) + 'px';
+  }
+  function startStage() {
+    const st = document.getElementById('stage');
+    if (!st) return;
+    const v = st.querySelector('video');
+    const pointed = () => st.classList.add('pointed');
+    layoutStage();
+    st.querySelector('.stage-card img')?.addEventListener('load', layoutStage);
+    if (stageObserver) stageObserver.disconnect();
+    stageObserver = new ResizeObserver(layoutStage);
+    stageObserver.observe(st);
+    // The rabbit walks in once and stays pointing; the poster is that last frame.
+    if (matchMedia('(prefers-reduced-motion: reduce)').matches) { pointed(); return; }
+    v.addEventListener('timeupdate', () => { if (v.currentTime >= RABBIT.pointAt) pointed(); });
+    v.addEventListener('ended', pointed);
+    v.addEventListener('error', pointed, true);
+    const p = v.play();
+    if (p && p.catch) p.catch(pointed); // autoplay blocked (e.g. power saving): show the last frame and the card
+    setTimeout(() => { if (v.paused && v.currentTime === 0) pointed(); }, 2500);
   }
 
   const pageHead = (eyebrow, title, text) => `<section class="page-head"><div class="wrap"><div class="eyebrow">${eyebrow}</div><h1>${title}</h1>${text ? `<p>${text}</p>` : ''}</div></section>`;
