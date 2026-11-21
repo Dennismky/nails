@@ -39,6 +39,28 @@ ADMIN_PASSWORD="choose-a-strong-password" node server.js
 
 Students: http://localhost:4000 · Admin: http://localhost:4000/admin
 
+## Test it on your computer (no domain needed)
+
+1. Install Node.js (LTS) from https://nodejs.org and Git from https://git-scm.com.
+2. Download and start the site:
+
+   ```bash
+   git clone -b claude/vigilant-albattani-7zbotz https://github.com/Dennismky/nails.git
+   cd nails
+   ```
+
+   Windows (PowerShell): `$env:ADMIN_PASSWORD="test123"; node server.js`
+   Mac/Linux: `ADMIN_PASSWORD=test123 node server.js`
+
+3. Admin: open http://localhost:4000/admin and log in with `test123`.
+4. Student: open http://localhost:4000 in a **private/incognito window** and press **Sign in**.
+   Until Google keys are set, this makes a test student ("Test Student 1", "2", ...), on localhost only.
+   Each new private window is a new student.
+5. Stop the site with Ctrl+C. Everything you added is kept in the `data` folder for next time.
+
+To try real Google sign-in on your computer, add `http://localhost:4000/auth/google/callback` as a redirect URI
+in Google Cloud (see below) and start with `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET` set.
+
 ## Settings
 
 | Name | What it is |

@@ -30,7 +30,10 @@ const SECRET = process.env.SESSION_SECRET || crypto.createHash('sha256').update(
 const SECURE = BASE_URL.startsWith('https://');
 
 if (!ADMIN_PASSWORD) console.warn('  ADMIN_PASSWORD is not set, so admin login is off.');
-if (!GOOGLE_ID || !GOOGLE_SECRET) console.warn('  GOOGLE_CLIENT_ID / GOOGLE_CLIENT_SECRET are not set, so "Sign in with Google" is off.');
+// Test sign-in: only on your own computer (BASE_URL on localhost) and only while Google sign-in is not set up.
+const TEST_LOGIN = !(GOOGLE_ID && GOOGLE_SECRET) && /^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(BASE_URL);
+if (TEST_LOGIN) console.warn('  Google sign-in is not set up, so "Sign in" makes a TEST student (localhost only). Use a private window for each extra student.');
+else if (!GOOGLE_ID || !GOOGLE_SECRET) console.warn('  GOOGLE_CLIENT_ID / GOOGLE_CLIENT_SECRET are not set, so "Sign in with Google" is off.');
 if (!process.env.SMTP_HOST) console.warn('  SMTP_HOST is not set, so enrollment emails are off (new students still show in Admin > Students).');
 
 // ---------- storage ----------
@@ -387,6 +390,16 @@ http.createServer(async (req, res) => {
   const p = url.pathname;
   try {
     if (p.startsWith('/api/')) return await api(req, res, url);
+    if (p === '/auth/google' && TEST_LOGIN) {
+      const host = String(req.headers.host || '');
+      if (!/^(localhost|127\.0\.0\.1)(:\d+)?$/.test(host)) return redirect(res, '/#signin-off');
+      const n = students.filter((x) => x.googleId.startsWith('test-')).length + 1;
+      const s = { id: newId(), googleId: 'test-' + newId(), email: `test${n}@example.com`, name: `Test Student ${n}`, picture: '', phone: '', location: '',
+        enrolled: false, createdAt: Date.now(), enrolledAt: null, lastLogin: Date.now(), unlockAll: false, unlocked: { lessons: [], designs: [] }, progress: {} };
+      students.push(s); saveStudents();
+      res.writeHead(302, { Location: '/#enroll', 'Set-Cookie': cookie('mna_user', sign({ sid: s.id, exp: Date.now() + 30 * 86400e3 }), 30 * 86400) });
+      return res.end();
+    }
     if (p === '/auth/google') {
       if (!GOOGLE_ID || !GOOGLE_SECRET) return redirect(res, '/#signin-off');
       const nonce = crypto.randomBytes(16).toString('hex');
