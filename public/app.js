@@ -174,8 +174,8 @@
       <section class="stage" id="stage" aria-label="${esc(s.name)}">
         <video class="stage-video" autoplay muted playsinline webkit-playsinline disablepictureinpicture disableremoteplayback controlslist="nodownload nofullscreen noremoteplayback noplaybackrate" preload="auto" poster="img/hero-start.jpg" tabindex="-1" aria-hidden="true">
 </video>
-        <span class="stage-burst" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></span>
-        <figure class="stage-card">${s.heroImage ? `<img src="${esc(s.heroImage)}" alt="${esc(s.name)} logo">` : `<span class="stage-wordmark">${brandHtml(s.name)}</span>`}</figure>
+        <figure class="stage-card"><div class="sc-inner">${s.heroImage ? `<img src="${esc(s.heroImage)}" alt="${esc(s.name)} logo">` : `<span class="stage-wordmark">${brandHtml(s.name)}</span>`}</div><span class="drip" style="--x:19%;--d:0s;--len:27%;--w:1.15"></span><span class="drip" style="--x:63%;--d:.3s;--len:9%;--w:.75"></span><span class="drip" style="--x:77%;--d:.14s;--len:16%;--w:.6"></span></figure>
+        <div class="stage-fx" aria-hidden="true"><span class="fx-beam"></span><span class="fx-flash"></span><span class="fx-brush"><svg viewBox="0 0 60 200" aria-hidden="true"><defs><linearGradient id="bc" x1="0" x2="1"><stop offset="0" stop-color="#d9d9d9"/><stop offset=".35" stop-color="#ffffff"/><stop offset="1" stop-color="#bdbdbd"/></linearGradient><linearGradient id="bt" x1="0" x2="1"><stop offset="0" stop-color="#0c0c0c"/><stop offset=".45" stop-color="#4a4a4a"/><stop offset="1" stop-color="#050505"/></linearGradient></defs><rect x="14" y="0" width="32" height="92" rx="7" fill="url(#bc)"/><rect x="19" y="10" width="5" height="70" rx="2.5" fill="#fff" opacity=".8"/><rect x="21" y="90" width="18" height="12" rx="2" fill="#9a9a9a"/><rect x="27" y="101" width="6" height="52" fill="#cfcfcf"/><path d="M20 150 h20 l-3 34 q-7 18 -14 0 z" fill="url(#bt)"/><path d="M25 156 l2 26" stroke="#fff" stroke-opacity=".5" stroke-width="2" stroke-linecap="round"/></svg></span><span class="stage-burst"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></span></div>
       </section>
 
       <section class="intro"><div class="wrap">
@@ -238,12 +238,10 @@
     card.style.width = w + 'px';
     card.style.left = Math.max(m * 0.5, fx - gap - w) + 'px';
     card.style.top = Math.min(Math.max(fy - h / 2, m), Ch - h - m) + 'px';
-    const burst = st.querySelector('.stage-burst');
-    if (burst) {
-      burst.style.setProperty('--bx', parseFloat(card.style.left) + w / 2 + 'px');
-      burst.style.setProperty('--by', parseFloat(card.style.top) + h / 2 + 'px');
-      burst.style.setProperty('--bw', w * 1.15 + 'px');
-    }
+    // Effects layer (spark, beam, brush, burst) sits exactly over the card.
+    const fxl = st.querySelector('.stage-fx');
+    Object.assign(fxl.style, { left: card.style.left, top: card.style.top, width: w + 'px', height: h + 'px' });
+    fxl.style.setProperty('--ch', h + 'px'); fxl.style.setProperty('--bw', w * 1.15 + 'px');
   }
   function startStage() {
     const st = document.getElementById('stage');
@@ -251,11 +249,23 @@
     const v = st.querySelector('video');
     let revealed = false;
     // The surprise: the banner pops up when the rabbit's hand comes up.
-    const reveal = () => { if (revealed) return; revealed = true; layoutStage(); st.classList.add('pointed'); };
+    const reveal = () => { if (revealed) return; revealed = true; layoutStage(); st.classList.add('pointed'); setTimeout(() => st.classList.add('settled'), 2100); };
     // Fallback when the video cannot play at all: show the last frame (rabbit pointing) and the banner.
     const showEnd = () => { v.poster = 'img/hero-poster.jpg'; try { v.pause(); if (v.duration) v.currentTime = v.duration; } catch {} reveal(); };
     layoutStage();
     st.querySelector('.stage-card img')?.addEventListener('load', layoutStage);
+    // On a computer the banner tilts gently toward the mouse once it has appeared.
+    if (matchMedia('(hover: hover)').matches) {
+      const inner = st.querySelector('.sc-inner');
+      st.addEventListener('pointermove', (e) => {
+        if (!st.classList.contains('settled')) return;
+        const r = inner.getBoundingClientRect();
+        const dx = Math.max(-1, Math.min(1, (e.clientX - (r.left + r.width / 2)) / r.width));
+        const dy = Math.max(-1, Math.min(1, (e.clientY - (r.top + r.height / 2)) / r.height));
+        inner.style.setProperty('--ry', dx * 10 + 'deg'); inner.style.setProperty('--rx', -dy * 8 + 'deg');
+      });
+      st.addEventListener('pointerleave', () => { inner.style.setProperty('--ry', '0deg'); inner.style.setProperty('--rx', '0deg'); });
+    }
     if (stageObserver) stageObserver.disconnect();
     stageObserver = new ResizeObserver(layoutStage);
     stageObserver.observe(st);
