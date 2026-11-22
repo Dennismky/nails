@@ -17,6 +17,8 @@ function upgrade(c) {
   delete c.school;
   for (const k of ['lessons', 'designs', 'classes', 'services']) c[k] = c[k] || seed[k];
   c.products = c.products || [];
+  // Designs from before the try-on (no "tryon" field at all) are replaced by the new designs with photos.
+  if (!c.designs.some((d) => 'tryon' in d)) c.designs = seed.designs;
   return c;
 }
 
