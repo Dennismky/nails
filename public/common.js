@@ -140,7 +140,7 @@
 
   // Preview: the same routes, worked out in this browser with the same rules (core.js).
   function previewApi() {
-    const KEY = 'elan_preview_v2', ME = 'mna_preview_me', ADMIN = 'mna_preview_admin';
+    const KEY = 'elan_preview_v3', ME = 'mna_preview_me', ADMIN = 'mna_preview_admin';
     const load = () => storage.get(KEY, null) || JSON.parse(JSON.stringify(window.__SEED__));
     const save = (d) => { if (!storage.set(KEY, d)) throw new Error('This browser is out of space for the preview. Remove a photo and try again.'); };
     const me = (d) => d.students.find((s) => s.id === storage.get(ME, null)) || null;

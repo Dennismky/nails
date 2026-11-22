@@ -34,7 +34,7 @@ There are no online payments yet: you confirm each order and arrange payment you
 |---|---|
 | Students | Every student, their contact details and progress %. Open one to see scores, press **Unlock next step** (one lesson at a time, in order, with **Undo last unlock**), and switch designs on or off. |
 | Lessons | Text, video link, the 5 quiz questions, order (drag or ↑ ↓), "free for every student", draft/published. |
-| Art work | Designs: photo, description, tools, steps (one per line), photo credit, free or locked, and **On the try-on hand**: one of 14 built-in looks or your own uploaded nail-art image. **Delete all designs** clears the list. |
+| Art work | Designs: photo, description, tools, steps (one per line), photo credit, free or locked, and **On the try-on hand**: your own close-up of a real nail (recommended) or one of 14 drawn looks. **Delete all designs** clears the list. |
 | Orders | Shop orders: customer, items, total, note. Mark them new, confirmed, delivered or cancelled, and WhatsApp the customer. |
 | Services | Your services with photo, price and time. Anyone can book an appointment: they pick a service, day and time, and the booking arrives on your WhatsApp. Set booking hours and closed days in Site & contact. |
 | Products | Shop items with photo, price (KSh), category and stock. |
@@ -162,16 +162,21 @@ Vercel's serverless functions do not keep files, so this server does not run the
 
 ## Art work designs and the try-on photo
 
-The 14 starting designs (Classic French, Pastel French, Soft Pink French, Baby Boomer, Polka Dots, Daisy Dots,
-Mini Hearts, Gold Glitter Fade, Mirror Chrome, Soft Marble, Leopard, Gold Line Art, Burgundy & Gold, Pastel
-Swirls) each have a photo of that design on the try-on hand (`public/img/designs/`). The designs follow how
-they are done in salons; leopard, for example, is a tan base, irregular brown spots, broken black C-shaped
-outlines and tiny filler dots.
+The 12 starting designs are **real manicures** photographed on Pexels (free to use), each named after the
+art it shows: Classic Red, Blue French Tips, Nude with Silver Accents, Silver Glitter & Nude, Polka Dots,
+Mint Green, Black & Gold Charms, Dark Cherry, Neon Marble, Soft Pink & Line Art, Glossy Black & Silver and
+Pink Blush Glitter.
 
+- `public/img/designs/<id>.jpg`: the design's photo (a crop of the real manicure).
+- `public/img/designs/tex-<id>.jpg`: a close-up of one real painted nail from that photo. The try-on hand
+  wears it, so the hand shows real polish, glitter and art.
 - `public/img/tryon-hand.jpg`: the hand photo, from
   [Pexels: Manicure on Hands of Sitting Woman](https://www.pexels.com/photo/manicure-on-hands-of-sitting-woman-5874876/).
 - `public/tryon-hand.js`: where each nail is on that photo, its exact mask and its light/shine layer.
-- `public/tryon.js`: the try-on and the 14 built-in looks.
+- `public/tryon.js`: the try-on. It also has 14 drawn looks the admin can pick instead of an image.
+
+To add your own design: Admin → Art work → + Add a design, upload a photo of the manicure, choose
+"My own nail-art image" and upload a close-up of one nail (crop inside the nail, tip at the top).
 
 ## Preview build
 

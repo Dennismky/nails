@@ -19,6 +19,9 @@ function upgrade(c) {
   c.products = c.products || [];
   // Designs from before the try-on (no "tryon" field at all) are replaced by the new designs with photos.
   if (!c.designs.some((d) => 'tryon' in d)) c.designs = seed.designs;
+  // Designs that are exactly the earlier drawn starting set (their photos no longer exist) become the real-photo designs.
+  const OLD = ['classic-french', 'pastel-french', 'pink-french', 'baby-boomer', 'polka-dots', 'daisy', 'hearts', 'glitter-fade', 'mirror-chrome', 'soft-marble', 'leopard', 'gold-lines', 'burgundy-gold', 'pastel-swirl'];
+  if (c.designs.length && c.designs.every((d) => OLD.includes(d.id) && d.tryon !== 'texture')) c.designs = seed.designs;
   return c;
 }
 

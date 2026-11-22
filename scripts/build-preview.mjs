@@ -17,7 +17,7 @@ const example = (name, email, phone, location, daysAgo, scores, extra = {}) => (
   unlocked: { lessons: [], designs: [] }, progress: Object.fromEntries(Object.entries(scores).map(([id, best]) => [id, { best, last: best, attempts: 1, at: now - day }])), ...extra });
 const base = seedCourse();
 base.site.shopOpen = true;
-base.designs = base.designs.map((d) => ({ ...d, image: d.image.replace(/^\//, '') }));
+base.designs = base.designs.map((d) => ({ ...d, image: d.image.replace(/^\//, ''), texture: (d.texture || '').replace(/^\//, '') }));
 base.site.heroImage = 'data:image/jpeg;base64,' + fs.readFileSync(path.join(root, 'public/img/elan-logo.jpg')).toString('base64');
 base.products = [
   { id: 'ex-gel-kit', title: 'Starter gel kit (example)', category: 'Kits', price: 4500, stock: 'in', image: '', published: true, description: 'Base, top coat and three colours: everything to practise gel at home.' },
@@ -25,7 +25,7 @@ base.products = [
   { id: 'ex-lamp', title: 'LED lamp (example)', category: 'Tools', price: 3200, stock: 'out', image: '', published: true, description: 'Rechargeable LED lamp for curing gel.' },
 ];
 const data = { ...base, students: [
-  example('Achieng Otieno', 'achieng@example.com', '0712 345 678', 'Kisumu', 3, { welcome: 5, anatomy: 4, hygiene: 5 }, { unlocked: { lessons: ['anatomy', 'hygiene', 'disorders'], designs: ['mirror-chrome'] } }),
+  example('Achieng Otieno', 'achieng@example.com', '0712 345 678', 'Kisumu', 3, { welcome: 5, anatomy: 4, hygiene: 5 }, { unlocked: { lessons: ['anatomy', 'hygiene', 'disorders'], designs: ['mint-green'] } }),
   example('Wanjiku Kamau', 'wanjiku@example.com', '0722 111 222', 'Nairobi', 1, { welcome: 3 }),
 ] };
 const seed = `<script>window.__SEED__ = ${JSON.stringify(data).replace(/</g, '\\u003c')};</script>`;
