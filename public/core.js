@@ -12,7 +12,7 @@
   }
   function cleanImage(v) {
     const s = typeof v === 'string' ? v.trim() : '';
-    if (/^\/uploads\/[a-z0-9]{8,40}\.(jpg|png|webp)$/.test(s) || /^\/img\/[a-z0-9-]{1,40}\.(jpg|png|webp|svg)$/.test(s)) return s;
+    if (/^\/uploads\/[a-z0-9]{8,40}\.(jpg|png|webp)$/.test(s) || /^\/?img\/([a-z0-9-]{1,40}\/)?[a-z0-9-]{1,40}\.(jpg|png|webp|svg)$/.test(s)) return s;
     if (s.length < 3_000_000 && /^data:image\/(jpeg|png|webp);base64,[A-Za-z0-9+/=]+$/.test(s)) return s; // preview only
     return cleanUrl(s);
   }
@@ -32,7 +32,9 @@
   const cleanDesign = (i, id) => ({
     id, title: str(i.title, 120) || 'Untitled design', level: str(i.level, 40), time: str(i.time, 40),
     description: str(i.description, 2000), image: cleanImage(i.image),
-    tools: str(i.tools, 1000),
+    tools: str(i.tools, 1000), credit: str(i.credit, 300),
+    // How it shows on the try-on hand: a built-in style id, "texture" (an uploaded nail-art image), or "" (not shown).
+    tryon: /^[a-z0-9-]{0,40}$/.test(i.tryon || '') ? i.tryon || '' : '', texture: cleanImage(i.texture),
     steps: (Array.isArray(i.steps) ? i.steps : String(i.steps || '').split('\n')).map((s) => str(s, 600)).filter(Boolean).slice(0, 40),
     published: bool(i.published, true), free: bool(i.free, false),
   });
@@ -148,7 +150,7 @@
       }),
       designs: db.designs.filter((d) => d.published).map((d) => {
         const open = canOpen('designs', d, user);
-        return { id: d.id, title: d.title, level: d.level, image: d.image, description: open ? d.description : '', free: d.free, locked: !open };
+        return { id: d.id, title: d.title, level: d.level, image: d.image, description: d.description, credit: d.credit, tryon: d.tryon, texture: d.tryon === 'texture' ? d.texture : '', free: d.free, locked: !open };
       }),
       progress: user ? progressOf(db, user) : null,
       services: (db.services || []).filter((x) => x.published),

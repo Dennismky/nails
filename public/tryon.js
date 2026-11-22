@@ -26,12 +26,13 @@
 
   // ---------- designs (drawn inside the nail shape) ----------
   const NUDE = '#c08a78', NUDE_DEEP = '#a9705f', MILK = '#f1e3dc';
-  const base = (c, id) => `<defs><linearGradient id="${id}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${c}" stop-opacity=".92"/><stop offset="1" stop-color="${c}" stop-opacity=".8"/></linearGradient></defs><rect x="-10" y="-10" width="120" height="170" fill="url(#${id})"/>`;
+  // Opaque nude with a soft warm fade (it must hide whatever is on the nail underneath).
+  const base = (c, id) => `<defs><linearGradient id="${id}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${c}"/><stop offset="1" stop-color="#b47c6c"/></linearGradient></defs><rect x="-10" y="-10" width="120" height="170" fill="url(#${id})"/>`;
   const tip = (c, depth = 36) => `<path d="M-10 -10 H110 V${depth} Q50 ${depth + 30} -10 ${depth} Z" fill="${c}"/>`;
   const heart = (x, y, s, c) => `<path transform="translate(${x} ${y}) scale(${s})" d="M0 4 C-6 -4 -14 2 -8 9 L0 16 L8 9 C14 2 6 -4 0 4 Z" fill="${c}"/>`;
   const daisy = (x, y, s) => `<g transform="translate(${x} ${y}) scale(${s})">${[0, 72, 144, 216, 288].map((r) => `<ellipse cx="0" cy="-9" rx="5.5" ry="9" fill="#fff" transform="rotate(${r})"/>`).join('')}<circle r="4.6" fill="#f2c14e"/></g>`;
 
-  const DESIGNS = [
+  const LOOKS = [
     {
       id: 'classic-french', name: 'Classic French', level: 'Beginner',
       desc: 'Crisp white tips over a warm-toned sheer nude. The pinkish-brown base keeps the nail bed glowing on deep skin, never chalky.',
@@ -126,6 +127,15 @@
   ];
 
   let uid = 0;
+  const LOOK = Object.fromEntries(LOOKS.map((d) => [d.id, d]));
+  // An admin-uploaded nail-art image, filling the nail.
+  const textureLook = (url) => ({ draw: () => `<rect x="-10" y="-10" width="120" height="170" fill="${NUDE}"/><image href="${esc(url)}" x="-10" y="-10" width="120" height="170" preserveAspectRatio="xMidYMid slice"/>` });
+  // Turn the site's Art work designs into what the hand wears.
+  const fromCatalog = (list) => list.map((d) => {
+    const look = d.tryon === 'texture' ? (d.texture ? textureLook(d.texture) : null) : LOOK[d.tryon];
+    return look ? { id: d.id, name: d.title, level: d.level || '', desc: d.description || '', draw: look.draw } : null;
+  }).filter(Boolean);
+
   function nailSvg(design, i, extraClass = '') {
     const u = `n${++uid}`;
     return `<g class="press ${extraClass}">
@@ -179,19 +189,50 @@
     </svg>`;
   }
 
-  function mount(el, { onLearn, learnIds = [] } = {}) {
+  // ---------- the real hand (photo) ----------
+  // window.MNATryOnHand (tryon-hand.js): the photo, and for each nail its exact mask, light/shine layer,
+  // centre, angle (cuticle -> tip) and size, all in photo pixels.
+  const PHOTO = () => window.MNATryOnHand;
+  function photoHandSvg(H) {
+    return `<svg class="tryon-hand photo" viewBox="0 0 ${H.w} ${H.h}" preserveAspectRatio="xMidYMid slice" role="img" aria-label="A hand in deep skin tones wearing the selected nail design">
+      <image href="${esc(H.img)}" width="${H.w}" height="${H.h}"/>
+      ${H.nails.map((n, k) => `<g class="slot" data-k="${k}"></g>`).join('')}
+    </svg>`;
+  }
+  // A press-on for one real nail: the design is laid along the nail, cut to the nail's exact shape,
+  // then shaded with that nail's own light and shine so it looks curved and glossy.
+  function photoNailSvg(design, n, extraClass = '') {
+    const u = `p${++uid}`;
+    const sx = (n.nw * 1.35) / 100, sy = (n.nl * 1.35) / 150;
+    return `<g class="press ${extraClass}">
+      <mask id="${u}m" maskUnits="userSpaceOnUse" x="${n.x}" y="${n.y}" width="${n.w}" height="${n.h}"><image href="${n.mask}" x="${n.x}" y="${n.y}" width="${n.w}" height="${n.h}"/></mask>
+      <g mask="url(#${u}m)"><g transform="translate(${n.cx} ${n.cy}) rotate(${n.a + 90}) scale(${sx} ${sy}) translate(-50 -75)">${design.draw(n.f, u)}</g></g>
+      <image href="${n.shade}" x="${n.x}" y="${n.y}" width="${n.w}" height="${n.h}"/>
+    </g>`;
+  }
+
+  function mount(el, { designs, onLearn, learnIds = [] } = {}) {
+    const DESIGNS = designs ? fromCatalog(designs) : LOOKS;
     let cur = 0, busy = false;
+    if (!DESIGNS.length) { el.innerHTML = ''; el.hidden = true; return; }
     el.innerHTML = `
       <div class="tryon-stage" tabindex="0" aria-label="Nail design try-on. Swipe or use the arrow keys to change the design.">
         <div class="tryon-glow" aria-hidden="true"></div>
-        ${handSvg()}
+        ${PHOTO() ? photoHandSvg(PHOTO()) : handSvg()}
         <button type="button" class="tryon-arrow prev" aria-label="Previous design">‹</button>
         <button type="button" class="tryon-arrow next" aria-label="Next design">›</button>
         <div class="tryon-hint" aria-hidden="true"><span></span>Swipe to try designs</div>
+        ${PHOTO() && PHOTO().credit ? `<span class="tryon-credit">${esc(PHOTO().credit)}</span>` : ''}
       </div>
       <div class="tryon-info" aria-live="polite"></div>
       <div class="tryon-rail" role="listbox" aria-label="Nail designs">${DESIGNS.map((d, k) => `<button type="button" class="chip-d" role="option" data-k="${k}" aria-label="${esc(d.name)}"><svg viewBox="-6 -6 112 162" aria-hidden="true">${nailSvg(d, 2)}</svg><span>${esc(d.name)}</span></button>`).join('')}</div>`;
     const svg = el.querySelector('.tryon-hand');
+    if (PHOTO()) {
+      const H = PHOTO(), stageEl = el.querySelector('.tryon-stage');
+      const fit = () => { const r = stageEl.getBoundingClientRect(); const ph = H.phone; svg.setAttribute('viewBox', r.width < 560 ? `${ph.x} ${ph.y} ${ph.w} ${ph.h}` : `0 0 ${H.w} ${H.h}`); };
+      fit(); new ResizeObserver(fit).observe(stageEl);
+      stageEl.classList.add('is-photo');
+    }
     const slots = [...svg.querySelectorAll('.slot')];
     const info = el.querySelector('.tryon-info');
     const chips = [...el.querySelectorAll('.chip-d')];
@@ -209,14 +250,17 @@
     // Press-ons: the old set flies off one way, the new set flies in from the other and lands finger by finger.
     function apply(k, dir) {
       cur = (k + DESIGNS.length) % DESIGNS.length;
-      const order = dir >= 0 ? [4, 3, 2, 1, 0] : [0, 1, 2, 3, 4];
-      slots.forEach((slot) => {
-        const i = +slot.dataset.i, delay = order.indexOf(i) * 70;
+      const H = PHOTO();
+      // nails land one after another, starting from the side the new set comes from
+      const xs = slots.map((sl) => (H ? H.nails[+sl.dataset.k].cx : +sl.dataset.i));
+      const rank = xs.map((x) => xs.filter((y) => (dir >= 0 ? y > x : y < x)).length);
+      slots.forEach((slot, si) => {
+        const i = H ? H.nails[+slot.dataset.k].f : +slot.dataset.i, delay = rank[si] * (H ? 55 : 70);
         slot.querySelectorAll('.press').forEach((old) => {
           old.classList.remove('in'); old.style.setProperty('--dir', dir || 1); old.style.setProperty('--delay', delay * 0.5 + 'ms'); old.classList.add('out');
           setTimeout(() => old.remove(), 700 + delay);
         });
-        slot.insertAdjacentHTML('beforeend', nailSvg(DESIGNS[cur], i, dir ? 'in' : ''));
+        slot.insertAdjacentHTML('beforeend', H ? photoNailSvg(DESIGNS[cur], H.nails[+slot.dataset.k], dir ? 'in' : '') : nailSvg(DESIGNS[cur], i, dir ? 'in' : ''));
         const n = slot.lastElementChild; n.style.setProperty('--dir', dir || 1); n.style.setProperty('--delay', 120 + delay + 'ms');
       });
       showInfo();
@@ -240,5 +284,5 @@
     apply(0, 0);
   }
 
-  window.MNATryOn = { mount, DESIGNS };
+  window.MNATryOn = { mount, LOOKS };
 })();

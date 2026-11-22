@@ -349,6 +349,7 @@
     if (window.MNATryOn) {
       const ids = cat.designs.map((d) => d.id);
       window.MNATryOn.mount(document.getElementById('tryon'), {
+        designs: cat.designs,
         learnIds: ids,
         onLearn: (id) => { const d = cat.designs.find((x) => x.id === id); if (d && d.locked) lockPopup(d.title, 'design'); else location.hash = 'design-' + id; },
       });
@@ -362,7 +363,7 @@
       app.innerHTML = `<article class="section"><div class="wrap">
         <a class="back" href="#art">← All art work</a>
         <div class="design-layout">
-          <figure class="design-photo">${d.image ? `<img src="${esc(d.image)}" alt="${esc(d.title)}">` : '<span class="photo-soon">Photo coming soon</span>'}</figure>
+          <figure class="design-photo">${d.image ? `<img src="${esc(d.image)}" alt="${esc(d.title)}">` : '<span class="photo-soon">Photo coming soon</span>'}${d.credit ? `<figcaption class="credit">${esc(d.credit)}</figcaption>` : ''}</figure>
           <div class="design-copy">
             <div class="eyebrow">Art work${d.level ? ' · ' + esc(d.level) : ''}${d.time ? ' · ' + esc(d.time) : ''}</div>
             <h1>${esc(d.title)}</h1>

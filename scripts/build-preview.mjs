@@ -17,6 +17,7 @@ const example = (name, email, phone, location, daysAgo, scores, extra = {}) => (
   unlocked: { lessons: [], designs: [] }, progress: Object.fromEntries(Object.entries(scores).map(([id, best]) => [id, { best, last: best, attempts: 1, at: now - day }])), ...extra });
 const base = seedCourse();
 base.site.shopOpen = true;
+base.designs = base.designs.map((d) => ({ ...d, image: d.image.replace(/^\//, '') }));
 base.site.heroImage = 'data:image/jpeg;base64,' + fs.readFileSync(path.join(root, 'public/img/elan-logo.jpg')).toString('base64');
 base.products = [
   { id: 'ex-gel-kit', title: 'Starter gel kit (example)', category: 'Kits', price: 4500, stock: 'in', image: '', published: true, description: 'Base, top coat and three colours: everything to practise gel at home.' },
@@ -36,6 +37,7 @@ const inline = (html, { page }) => {
     .replace('<link rel="stylesheet" href="theme.css">\n', '')
     .replace('<script src="core.js"></script>\n', '')
     .replace('<script src="common.js"></script>', () => `${seed}\n<script>${pub('core.js')}</script>\n<script>${pub('common.js')}</script>`)
+    .replace('<script src="tryon-hand.js"></script>', () => `<script>${pub('tryon-hand.js')}</script>`)
     .replace('<script src="tryon.js"></script>', () => `<script>${pub('tryon.js')}</script>`)
     .replace('<script src="app.js"></script>', () => `<script>${pub('app.js')}</script>`)
     .replace('<script src="admin.js"></script>', () => `<script>${pub('admin.js')}</script>`);
@@ -51,5 +53,7 @@ fs.writeFileSync(path.join(out, 'index.html'), inline(pub('index.html'), { page:
 fs.writeFileSync(path.join(out, 'admin.html'), inline(pub('admin.html'), { page: false }));
 // The home page video and its still frame are separate files next to the page.
 fs.mkdirSync(path.join(out, 'img'), { recursive: true });
-for (const f of ['hero-1024.mp4', 'hero-1920.mp4', 'hero-poster.jpg', 'hero-start.jpg']) fs.copyFileSync(path.join(root, 'public/img', f), path.join(out, 'img', f));
+for (const f of ['hero-1024.mp4', 'hero-1920.mp4', 'hero-poster.jpg', 'hero-start.jpg', 'tryon-hand.jpg']) fs.copyFileSync(path.join(root, 'public/img', f), path.join(out, 'img', f));
+fs.mkdirSync(path.join(out, 'img/designs'), { recursive: true });
+for (const f of fs.readdirSync(path.join(root, 'public/img/designs'))) fs.copyFileSync(path.join(root, 'public/img/designs', f), path.join(out, 'img/designs', f));
 console.log('Preview written to', out);

@@ -307,6 +307,7 @@ async function api(req, res, url) {
   }
   if (m === 'POST' && p === '/api/admin/upload') { const { dataUrl } = await readJson(req, 9_000_000); return send(res, 201, { url: await saveUpload(dataUrl) }); }
 
+  if (m === 'DELETE' && p === '/api/admin/designs') { db.designs = []; await saveContent(); return send(res, 200, { ok: true }); }
   if ((r = p.match(new RegExp(`^/api/admin/${KIND_RE}$`))) && m === 'POST') {
     const item = KINDS[r[1]](await readJson(req), newId());
     db[r[1]].push(item); await saveContent();

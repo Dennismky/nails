@@ -50,10 +50,10 @@
     },
     designs: {
       title: 'Art work', one: 'design',
-      blank: () => ({ title: 'New design', level: 'Beginner', time: '', description: '', tools: '', image: '', steps: [], published: false, free: false }),
+      blank: () => ({ title: 'New design', level: 'Beginner', time: '', description: '', tools: '', image: '', steps: [], published: false, free: false, tryon: '', texture: '', credit: '' }),
       normalise: (d) => ({ ...clone(d), stepsText: (d.steps || []).join('\n') }),
       pack: (d) => { const { stepsText, ...rest } = d; return { ...rest, steps: String(stepsText || '').split('\n').map((s) => s.trim()).filter(Boolean) }; },
-      sub: (d) => `${!d.published ? '<span class="badge">Draft</span>' : ''}${d.free ? '<span class="badge free">Free</span>' : ''}${d.image ? '' : '<span class="badge warn">No photo</span>'}${(d.steps || []).length} steps`,
+      sub: (d) => `${!d.published ? '<span class="badge">Draft</span>' : ''}${d.free ? '<span class="badge free">Free</span>' : ''}${d.image ? '' : '<span class="badge warn">No photo</span>'}${d.tryon ? '<span class="badge">On hand</span>' : ''}${(d.steps || []).length} steps`,
       thumb: (d) => d.image ? `<img class="thumb" src="${esc(d.image)}" alt="">` : '',
     },
     services: {
@@ -133,6 +133,7 @@
       <aside class="side" aria-label="${K.title}">
         ${groups.map(([s, name]) => `<h3>${name}</h3><ol class="items" data-section="${s || ''}">${listOf(kind, s).map((x, i, arr) => itemHtml(kind, x, i, arr.length)).join('') || '<li class="muted small" style="padding:4px">Nothing here yet</li>'}</ol>`).join('')}
         <button class="btn btn-primary btn-sm add" type="button" id="add">+ Add a ${K.one}</button>
+        ${kind === 'designs' && data.designs.length ? '<button class="btn btn-danger btn-sm add" type="button" id="delete-all">Delete all designs</button>' : ''}
       </aside>
       <section class="editor" id="editor">${draft ? editorFor(kind) : `<p class="muted">Pick a ${K.one} on the left, or add a new one.</p>`}</section>
     </div>`;
@@ -187,6 +188,11 @@
     root.querySelectorAll('.items').forEach((ol) => {
       ol.addEventListener('dragover', (e) => e.preventDefault());
       ol.addEventListener('drop', (e) => { e.preventDefault(); moveBefore(kind, dragId, null, ol.dataset.section); });
+    });
+    const delAll = $('#delete-all');
+    if (delAll) armed(delAll, 'Click again: delete every design', async () => {
+      try { await api.removeAll(kind); data[kind] = []; sel[kind] = null; draft = null; dirty = false; kindTab(kind); toast('All designs deleted. Add your own with "+ Add a design".'); }
+      catch (e) { toast(e.message, true); }
     });
     $('#add').addEventListener('click', async () => {
       if (dirty) { toast('Save or discard your changes first.', true); return; }
@@ -246,6 +252,21 @@
         <label class="field"><span>Description</span><textarea id="f-description" data-k="description" rows="3" maxlength="2000" placeholder="What the design is and who it suits.">${esc(d.description)}</textarea></label>
         <label class="field"><span>Tools & products needed</span><textarea id="f-tools" data-k="tools" rows="2" maxlength="1000" placeholder="Base gel, white gel, liner brush, top coat, LED lamp">${esc(d.tools)}</textarea></label>
         <label class="field"><span>Steps to follow</span><textarea id="f-steps" data-k="stepsText" rows="9" placeholder="One step per line">${esc(d.stepsText)}</textarea><small id="steps-count">${d.stepsText.split('\n').filter((s) => s.trim()).length} steps · one step per line</small></label>
+        ${input('credit', 'Photo credit (if the photo needs one)', d.credit, 'placeholder="Photo: name, CC BY 2.0" maxlength="300"')}
+        <div class="group"><h3>On the try-on hand</h3>
+          <p class="qhint">Choose how this design looks on the hand at the top of the Art work page. Visitors swipe through every design that has a look.</p>
+          <label class="field"><span>Look</span><select id="f-tryon" data-k="tryon">
+            <option value="" ${!d.tryon ? 'selected' : ''}>Not on the try-on hand</option>
+            <optgroup label="Built-in looks">${(window.MNATryOn ? window.MNATryOn.LOOKS : []).map((l) => `<option value="${l.id}" ${d.tryon === l.id ? 'selected' : ''}>${esc(l.name)}</option>`).join('')}</optgroup>
+            <option value="texture" ${d.tryon === 'texture' ? 'selected' : ''}>My own nail-art image (upload below)</option>
+          </select></label>
+          <div class="photo-edit" id="tex-wrap" ${d.tryon === 'texture' ? '' : 'hidden'}>
+            <div class="photo-box tex-box" id="tex-box">${d.texture ? `<img src="${esc(d.texture)}" alt="">` : '<span>No image yet</span>'}</div>
+            <div class="photo-actions"><b>Nail-art image</b><p class="muted small">A close-up of the pattern itself (a square crop of one nail's design works best). It is fitted onto every nail.</p>
+              <div class="row"><label class="btn btn-primary btn-sm" for="f-tex">${d.texture ? 'Replace image' : 'Upload image'}</label><input type="file" id="f-tex" accept="image/jpeg,image/png,image/webp" hidden></div>
+              <p class="err" id="tex-err"></p></div>
+          </div>
+        </div>
         <div class="checks">${check('published', 'Show to students', d.published)}${check('free', 'Free for every enrolled student', d.free, 'Otherwise it stays locked until you unlock it for a student.')}</div>
         ${saveBar('design')}`;
     }
@@ -338,6 +359,14 @@
         const pv = $('#body-preview'); pv.hidden = textMode === 'write';
         if (textMode === 'preview') pv.innerHTML = renderText(draft.body);
       }));
+    }
+    if ($('#f-tryon')) {
+      $('#f-tryon').addEventListener('change', (e) => { $('#tex-wrap').hidden = e.target.value !== 'texture'; });
+      $('#f-tex').addEventListener('change', async (e) => {
+        const file = e.target.files[0]; if (!file) return;
+        try { draft.texture = await api.upload(await resizeImage(file, 600, 0.88)); $('#tex-box').innerHTML = `<img src="${esc(draft.texture)}" alt="">`; markDirty(kind); }
+        catch (err) { $('#tex-err').textContent = err.message; }
+      });
     }
     if ($('#f-photo')) {
       $('#f-photo').addEventListener('change', async (e) => {
