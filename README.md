@@ -1,28 +1,40 @@
 # Élan Beauty
 
-Élan Beauty: a nail studio and academy website for Kenya: physical classes, an online course and an art work gallery.
-No dependencies. You need only Node.js 18 or newer.
+A nail studio and academy website for Kenya: a rabbit-video home page, appointment booking on WhatsApp,
+physical classes, a locked online course, a real-hand nail art try-on, services and a shop.
+No dependencies. You need only Node.js 18 or newer. Runs on your computer, on any server with a disk, or on Vercel.
 
-**What visitors see:** Home (what we do, physical classes), Classes, About, Contact. Course and Art work cards
-show a transparent lock.
+**Home:** the rabbit walks in, raises its hand and points; the Élan banner is painted in with a nail-polish
+brush (spark, beam, 3D pop, glitter, lacquer drips). The rabbit wears the Élan logo on its T-shirt. Below:
+headline, intro, **Book appointment** and **See our classes**.
 
-**What students see:** they sign in with Google and enroll with their phone number. Lesson 1 and any
-lesson or design you mark "free" open straight away. Everything else stays locked until you unlock it for
-that student. Clicking a lock shows a popup with your WhatsApp and email. Students land on **Art work**
-when they sign in, and their progress is saved to their account.
+**What visitors see:** Home, Art work, Course, Services, Classes, About, Contact. Course cards show a
+transparent lock; locked lessons say **Contact admin** and open a popup with your WhatsApp (the number is
+never printed on the page) and email.
 
-**Shop:** signed-in students see a Shop page, add products to a cart and place an order. You get an email,
-the order appears in Admin → Orders, and the customer can send it to you on WhatsApp. Prices are always taken
-from your product list, never from the browser. There are no online payments yet: you confirm each order and
-arrange payment yourself.
+**What students see:** they sign in with Google and enroll with their phone number (you get an email).
+Lesson 1 and anything marked "free" open straight away; everything else opens one step at a time when you
+unlock it. Students land on **Art work** when they sign in, and their progress is saved to their account.
+
+**Art work try-on:** a real photo of a Black woman's hands (Pexels, free to use). Visitors swipe and each
+design's press-on nails fly onto her eight visible nails. Every nail has an exact mask and its own light and
+shine traced from the photo, so designs follow the nail's angle and look curved and glossy. Phones zoom in on
+one hand. The hand wears the designs in Admin → Art work.
+
+**Booking:** a form (service, day, time, name, phone, note) opens WhatsApp with the booking written out.
+Only open days and hours can be picked (set them in Admin → Site & contact).
+
+**Shop:** signed-in students add products to a cart and place an order. You get an email, the order appears
+in Admin → Orders, and the customer can send it to you on WhatsApp. Prices always come from your product list.
+There are no online payments yet: you confirm each order and arrange payment yourself.
 
 **What you see (`/admin`):**
 
 | Tab | What you do there |
 |---|---|
-| Students | Every student, their contact details and progress %. Open one to see scores, then unlock lessons and designs one by one, or everything at once. |
+| Students | Every student, their contact details and progress %. Open one to see scores, press **Unlock next step** (one lesson at a time, in order, with **Undo last unlock**), and switch designs on or off. |
 | Lessons | Text, video link, the 5 quiz questions, order (drag or ↑ ↓), "free for every student", draft/published. |
-| Art work | Upload a photo, write the description, tools and steps (one per line), free or locked. |
+| Art work | Designs: photo, description, tools, steps (one per line), photo credit, free or locked, and **On the try-on hand**: one of 14 built-in looks or your own uploaded nail-art image. **Delete all designs** clears the list. |
 | Orders | Shop orders: customer, items, total, note. Mark them new, confirmed, delivered or cancelled, and WhatsApp the customer. |
 | Services | Your services with photo, price and time. Anyone can book an appointment: they pick a service, day and time, and the booking arrives on your WhatsApp. Set booking hours and closed days in Site & contact. |
 | Products | Shop items with photo, price (KSh), category and stock. |
@@ -147,6 +159,19 @@ Vercel's serverless functions do not keep files, so this server does not run the
 - Locked lessons and designs never leave the server: visitors get titles only.
 - Quiz answers stay on the server. Students send their choices and the server marks them.
 - Admin login uses a password and a signed cookie. Student login uses Google OAuth and a signed cookie (30 days).
+
+## Art work designs and the try-on photo
+
+The 14 starting designs (Classic French, Pastel French, Soft Pink French, Baby Boomer, Polka Dots, Daisy Dots,
+Mini Hearts, Gold Glitter Fade, Mirror Chrome, Soft Marble, Leopard, Gold Line Art, Burgundy & Gold, Pastel
+Swirls) each have a photo of that design on the try-on hand (`public/img/designs/`). The designs follow how
+they are done in salons; leopard, for example, is a tan base, irregular brown spots, broken black C-shaped
+outlines and tiny filler dots.
+
+- `public/img/tryon-hand.jpg`: the hand photo, from
+  [Pexels: Manicure on Hands of Sitting Woman](https://www.pexels.com/photo/manicure-on-hands-of-sitting-woman-5874876/).
+- `public/tryon-hand.js`: where each nail is on that photo, its exact mask and its light/shine layer.
+- `public/tryon.js`: the try-on and the 14 built-in looks.
 
 ## Preview build
 

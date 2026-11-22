@@ -25,104 +25,149 @@
   const rng = (seed) => () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
 
   // ---------- designs (drawn inside the nail shape) ----------
-  const NUDE = '#c08a78', NUDE_DEEP = '#a9705f', MILK = '#f1e3dc';
-  // Opaque nude with a soft warm fade (it must hide whatever is on the nail underneath).
-  const base = (c, id) => `<defs><linearGradient id="${id}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${c}"/><stop offset="1" stop-color="#b47c6c"/></linearGradient></defs><rect x="-10" y="-10" width="120" height="170" fill="url(#${id})"/>`;
-  const tip = (c, depth = 36) => `<path d="M-10 -10 H110 V${depth} Q50 ${depth + 30} -10 ${depth} Z" fill="${c}"/>`;
-  const heart = (x, y, s, c) => `<path transform="translate(${x} ${y}) scale(${s})" d="M0 4 C-6 -4 -14 2 -8 9 L0 16 L8 9 C14 2 6 -4 0 4 Z" fill="${c}"/>`;
-  const daisy = (x, y, s) => `<g transform="translate(${x} ${y}) scale(${s})">${[0, 72, 144, 216, 288].map((r) => `<ellipse cx="0" cy="-9" rx="5.5" ry="9" fill="#fff" transform="rotate(${r})"/>`).join('')}<circle r="4.6" fill="#f2c14e"/></g>`;
+  // Each design is drawn in a 100 x 150 box (tip at the top, cuticle at the bottom). On the photo the nail
+  // itself fills roughly x 13-87, y 12-138 of that box, so details are sized for that.
+  const NUDE = '#c38d7b', MILK = '#f1e4de';
+  const R = (x) => Math.round(x * 10) / 10;
+  // Opaque warm nude, a touch deeper at the cuticle (it must hide whatever is on the nail underneath).
+  const base = (c, id, c2 = '#b27a69') => `<defs><linearGradient id="${id}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${c}"/><stop offset="1" stop-color="${c2}"/></linearGradient></defs><rect x="-10" y="-10" width="120" height="170" fill="url(#${id})"/>`;
+  const soft = (u, sd) => `<filter id="${u}" x="-20%" y="-20%" width="140%" height="140%"><feGaussianBlur stdDeviation="${sd}"/></filter>`;
+  // French tip: a curved smile line with a soft edge, like real gel.
+  const tip = (u, c, depth = 34) => `<defs>${soft(u + 'ts', 1.2)}</defs>
+    <path d="M-10 -10 H110 V${depth} Q50 ${depth + 26} -10 ${depth} Z" fill="${c}" opacity=".55" filter="url(#${u}ts)"/>
+    <path d="M-10 -10 H110 V${depth - 2} Q50 ${depth + 22} -10 ${depth - 2} Z" fill="${c}"/>`;
+  const heart = (x, y, s, c) => `<g transform="translate(${x} ${y}) scale(${s})"><path d="M0 3.5 C-5 -3.5 -12.5 1.5 -7 8 L0 14.5 L7 8 C12.5 1.5 5 -3.5 0 3.5 Z" fill="${c}"/><ellipse cx="-4" cy="2.6" rx="1.6" ry="1" fill="#fff" opacity=".55" transform="rotate(-30 -4 2.6)"/></g>`;
+  const daisy = (x, y, s, rot = 0) => `<g transform="translate(${x} ${y}) rotate(${rot}) scale(${s})">${[0, 60, 120, 180, 240, 300].map((r) => `<ellipse cx="0" cy="-7.2" rx="3.6" ry="6.6" fill="#fff" stroke="#e7dcd6" stroke-width=".5" transform="rotate(${r})"/>`).join('')}<circle r="3.4" fill="#f0b93a"/><circle r="3.4" fill="#c98a1c" opacity=".35" transform="translate(.8 .8) scale(.6)"/></g>`;
+  // points round an ellipse, for irregular leopard spots and their broken outlines
+  const ell = (cx, cy, rx, ry, rot, a0, a1, n = 14) => {
+    const c = Math.cos(rot), s = Math.sin(rot), pts = [];
+    for (let k = 0; k <= n; k++) { const a = a0 + (a1 - a0) * k / n; const x = Math.cos(a) * rx, y = Math.sin(a) * ry; pts.push([R(cx + x * c - y * s), R(cy + x * s + y * c)]); }
+    return pts;
+  };
+  const line = (pts) => 'M' + pts.map((p) => p.join(' ')).join(' L');
 
   const LOOKS = [
     {
       id: 'classic-french', name: 'Classic French', level: 'Beginner',
       desc: 'Crisp white tips over a warm-toned sheer nude. The pinkish-brown base keeps the nail bed glowing on deep skin, never chalky.',
-      draw: (i, u) => base(NUDE, u + 'b') + tip('#fbf8f4'),
+      draw: (i, u) => base(NUDE, u + 'b') + tip(u, '#fbf8f3'),
     },
     {
       id: 'pastel-french', name: 'Pastel French', level: 'Beginner',
       desc: 'A different soft pastel tip on every finger. Pastels pop beautifully against ebony skin on a warm nude base.',
-      draw: (i, u) => base(NUDE, u + 'b') + tip(['#f7e39b', '#c9b6e8', '#a8e0cf', '#a9cdf2', '#ffc4a8'][i]),
+      draw: (i, u) => base(NUDE, u + 'b') + tip(u, ['#f6e39a', '#cdb8ec', '#a6e2cf', '#a8cdf3', '#ffc3a6'][i]),
     },
     {
       id: 'pink-french', name: 'Soft Pink French', level: 'Beginner',
       desc: 'Baby-pink tips instead of white: softer contrast, still clean and bridal.',
-      draw: (i, u) => base(NUDE, u + 'b') + tip('#f3b3c1', 40),
+      draw: (i, u) => base(NUDE, u + 'b') + tip(u, '#f4b6c4', 36),
     },
     {
       id: 'baby-boomer', name: 'Baby Boomer', level: 'Beginner',
       desc: 'A milky fade from nude at the cuticle to white at the tip. Sponge it on in thin layers for a seamless blend.',
-      draw: (i, u) => `<defs><linearGradient id="${u}g" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fdfbf8"/><stop offset=".45" stop-color="#ecd2ca"/><stop offset="1" stop-color="${NUDE}"/></linearGradient></defs><rect x="-10" y="-10" width="120" height="170" fill="url(#${u}g)"/>`,
+      draw: (i, u) => `<defs><linearGradient id="${u}g" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fcfaf7"/><stop offset=".22" stop-color="#f8f0ec"/><stop offset=".58" stop-color="#e2bfb3"/><stop offset="1" stop-color="${NUDE}"/></linearGradient></defs><rect x="-10" y="-10" width="120" height="170" fill="url(#${u}g)"/>`,
     },
     {
       id: 'polka-dots', name: 'Polka Dots', level: 'Beginner',
       desc: 'The first design to learn with a dotting tool. White dots on nude, with a black accent nail for contrast.',
-      draw: (i) => {
-        const dark = i === 3, c = dark ? '#fff' : '#fbf8f4';
-        let s = `<rect x="-10" y="-10" width="120" height="170" fill="${dark ? '#121212' : NUDE}"/>`;
-        for (let r = 0; r < 6; r++) for (let k = 0; k < 4; k++) s += `<circle cx="${(r % 2 ? 26 : 8) + k * 34}" cy="${12 + r * 26}" r="5.2" fill="${c}"/>`;
+      draw: (i, u) => {
+        const dark = i === 3, c = dark ? '#fbfbfb' : '#fdfaf6';
+        let s = dark ? `<rect x="-10" y="-10" width="120" height="170" fill="#141313"/>` : base(NUDE, u + 'b');
+        for (let r = 0; r < 9; r++) for (let k = 0; k < 6; k++) s += `<circle cx="${R(4 + k * 19 + (r % 2 ? 9.5 : 0))}" cy="${R(10 + r * 16)}" r="3.2" fill="${c}"/>`;
         return s;
       },
     },
     {
       id: 'daisy', name: 'Daisy Dots', level: 'Beginner',
-      desc: 'Five dots and a yellow centre make a daisy. Put flowers on two nails and simple dots on the rest.',
-      draw: (i) => `<rect x="-10" y="-10" width="120" height="170" fill="${MILK}"/>` + (i === 1 || i === 3 ? daisy(50, 60, 1.6) + daisy(70, 108, .8) : `<circle cx="38" cy="54" r="4" fill="#fff"/><circle cx="62" cy="86" r="3" fill="#f2c14e"/>`),
+      desc: 'Five petals and a yellow centre make a daisy. Flowers on two nails and simple dots on the rest.',
+      draw: (i, u) => base(MILK, u + 'b', '#e9d6cf') + (i === 1 || i === 3 ? daisy(50, 70, 1.5, i * 12) + daisy(70, 112, .7, 20) + `<circle cx="30" cy="40" r="2.2" fill="#fff"/>` : `<circle cx="42" cy="58" r="2.6" fill="#fff"/><circle cx="58" cy="80" r="2" fill="#f0b93a"/><circle cx="46" cy="100" r="1.8" fill="#fff"/>`),
     },
     {
       id: 'hearts', name: 'Mini Hearts', level: 'Beginner',
       desc: 'Tiny red hearts on a milky pink base: two dots dragged into a V. Perfect for Valentine\'s or every day.',
-      draw: (i) => `<rect x="-10" y="-10" width="120" height="170" fill="#f0d0d0"/>` + [[50, 58, 1.7], [30, 104, .9], [70, 30, .8]].slice(0, i % 2 ? 3 : 1).map(([x, y, s]) => heart(x, y, s, '#c8102e')).join(''),
+      draw: (i, u) => base('#f2d5d6', u + 'b', '#e7c0c2') + (i % 2 ? heart(50, 62, 1.5, '#c40f2c') : heart(44, 50, .85, '#c40f2c') + heart(60, 96, .65, '#c40f2c')),
     },
     {
       id: 'glitter-fade', name: 'Gold Glitter Fade', level: 'Easy',
-      desc: 'Gold glitter dense at the tip, fading into a nude base. Warm gold flatters deep skin tones.',
+      desc: 'Fine gold glitter packed at the tip, fading into a nude base. Warm gold flatters deep skin tones.',
       draw: (i, u) => {
-        const r = rng(7 + i * 31); let s = base(NUDE, u + 'b') + `<defs><linearGradient id="${u}f" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#d9a441" stop-opacity=".95"/><stop offset=".55" stop-color="#d9a441" stop-opacity=".15"/><stop offset="1" stop-color="#d9a441" stop-opacity="0"/></linearGradient></defs><rect x="-10" y="-10" width="120" height="170" fill="url(#${u}f)"/>`;
-        for (let k = 0; k < 90; k++) { const y = Math.pow(r(), 1.8) * 150; s += `<circle cx="${r() * 100}" cy="${y}" r="${0.8 + r() * 2.2}" fill="${r() > .5 ? '#ffe7a3' : '#c58b2a'}" opacity="${1 - y / 170}"/>`; }
+        const r = rng(7 + i * 31);
+        let s = base(NUDE, u + 'b') + `<defs><linearGradient id="${u}f" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#c99434"/><stop offset=".3" stop-color="#c99434" stop-opacity=".7"/><stop offset=".7" stop-color="#c99434" stop-opacity="0"/></linearGradient></defs><rect x="-10" y="-10" width="120" height="170" fill="url(#${u}f)"/>`;
+        for (let k = 0; k < 230; k++) {
+          const y = Math.pow(r(), 2) * 140; const sz = 1.3 + r() * 1.6; const t = r();
+          s += `<rect x="${R(r() * 104 - 2)}" y="${R(y)}" width="${R(sz * 1.6)}" height="${R(sz * 1.6)}" transform="rotate(${Math.round(r() * 90)})" transform-origin="center" fill="${t > .7 ? '#fff8dc' : t > .3 ? '#f0c057' : '#a8741f'}" opacity="${R(Math.max(.2, 1 - y / 125))}"/>`;
+        }
+        for (let k = 0; k < 9; k++) { const x = 15 + r() * 70, y = 8 + r() * 46; s += `<path d="M${R(x)} ${R(y - 3)} L${R(x + .6)} ${R(y - .6)} L${R(x + 3)} ${R(y)} L${R(x + .6)} ${R(y + .6)} L${R(x)} ${R(y + 3)} L${R(x - .6)} ${R(y + .6)} L${R(x - 3)} ${R(y)} L${R(x - .6)} ${R(y - .6)} Z" fill="#fffbe9"/>`; }
         return s;
       },
     },
     {
       id: 'mirror-chrome', name: 'Mirror Chrome', level: 'Intermediate',
-      desc: 'Liquid-metal shine from chrome powder rubbed over a no-wipe top coat.',
-      draw: (i, u) => `<defs><linearGradient id="${u}c" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#6f7075"/><stop offset=".28" stop-color="#f4f5f8"/><stop offset=".45" stop-color="#8d8f96"/><stop offset=".62" stop-color="#ffffff"/><stop offset="1" stop-color="#5b5c61"/></linearGradient></defs><rect x="-10" y="-10" width="120" height="170" fill="url(#${u}c)"/>`,
+      desc: 'A liquid-metal mirror from chrome powder rubbed over a no-wipe top coat.',
+      draw: (i, u) => `<defs><linearGradient id="${u}c" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#2d3036"/><stop offset=".14" stop-color="#9aa0aa"/><stop offset=".24" stop-color="#f7f9fc"/><stop offset=".3" stop-color="#ffffff"/><stop offset=".42" stop-color="#7d838d"/><stop offset=".55" stop-color="#2a2d33"/><stop offset=".7" stop-color="#b9bfc8"/><stop offset=".8" stop-color="#f2f4f8"/><stop offset=".9" stop-color="#7a808a"/><stop offset="1" stop-color="#25282d"/></linearGradient>
+        <linearGradient id="${u}v" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fff" stop-opacity=".25"/><stop offset=".5" stop-color="#fff" stop-opacity="0"/><stop offset="1" stop-color="#000" stop-opacity=".3"/></linearGradient></defs>
+        <rect x="-10" y="-10" width="120" height="170" fill="url(#${u}c)"/><rect x="-10" y="-10" width="120" height="170" fill="url(#${u}v)"/>`,
     },
     {
       id: 'soft-marble', name: 'Soft Marble', level: 'Intermediate',
-      desc: 'Grey and gold veins on milky white, softened with blooming gel.',
-      draw: (i) => `<rect x="-10" y="-10" width="120" height="170" fill="#f4f1ee"/><path d="M-5 ${40 + i * 6} C25 ${55 + i * 4} 40 ${30 + i * 8} 70 ${70 - i * 3} S105 95 110 ${110 - i * 5}" stroke="#7d7d7d" stroke-width="2.4" fill="none" opacity=".75"/><path d="M10 150 C30 ${110 - i * 4} 55 ${120 - i * 6} 90 ${60 + i * 5}" stroke="#a0a0a0" stroke-width="1.2" fill="none" opacity=".6"/><path d="M-5 ${95 - i * 4} C30 ${80 + i * 3} 60 ${105 - i * 4} 105 ${75 + i * 4}" stroke="#c9a14a" stroke-width="1.4" fill="none"/>`,
+      desc: 'Hazy grey veins with a few sharp ones and a thread of gold on milky white, softened with blooming gel.',
+      draw: (i, u) => {
+        const r = rng(5 + i * 13), j = (v) => R(v + (r() - .5) * 14);
+        const v1 = `M-8 ${j(30)} C${j(20)} ${j(50)} ${j(40)} ${j(28)} ${j(60)} ${j(64)} S${j(92)} ${j(84)} 110 ${j(112)}`;
+        const v2 = `M${j(10)} 152 C${j(26)} ${j(118)} ${j(52)} ${j(126)} ${j(80)} ${j(70)}`;
+        const v3 = `M-8 ${j(96)} C${j(28)} ${j(84)} ${j(58)} ${j(104)} 110 ${j(78)}`;
+        return `<defs>${soft(u + 'm1', 2.2)}${soft(u + 'm2', .7)}</defs><rect x="-10" y="-10" width="120" height="170" fill="#f4f2ef"/>
+          <g filter="url(#${u}m1)" opacity=".55"><path d="${v1}" stroke="#8a8a8a" stroke-width="5" fill="none"/><path d="${v2}" stroke="#a3a3a3" stroke-width="4" fill="none"/></g>
+          <g filter="url(#${u}m2)"><path d="${v1}" stroke="#6d6d6d" stroke-width="1.1" fill="none"/><path d="${v2}" stroke="#8c8c8c" stroke-width=".8" fill="none"/></g>
+          <path d="${v3}" stroke="#c9a04a" stroke-width="1.2" fill="none" opacity=".9"/>`;
+      },
     },
     {
       id: 'leopard', name: 'Leopard', level: 'Easy',
-      desc: 'Caramel base, brown blobs, then broken black outlines around each one.',
-      draw: (i) => {
-        const r = rng(3 + i * 17); let s = `<rect x="-10" y="-10" width="120" height="170" fill="#c99a69"/>`;
-        for (let k = 0; k < 7; k++) {
-          const x = 10 + r() * 80, y = 8 + r() * 135, rx = 7 + r() * 5, ry = 5 + r() * 4, rot = r() * 180;
-          s += `<g transform="translate(${x} ${y}) rotate(${rot})"><ellipse rx="${rx}" ry="${ry}" fill="#7a4e2b"/><path d="M${-rx - 2} 0 A${rx + 2} ${ry + 2} 0 0 1 ${rx * 0.4} ${-ry - 2}" stroke="#1d120b" stroke-width="2.6" fill="none" stroke-linecap="round"/><path d="M${rx + 2} 2 A${rx + 2} ${ry + 2} 0 0 1 ${-rx * 0.2} ${ry + 2}" stroke="#1d120b" stroke-width="2.6" fill="none" stroke-linecap="round"/></g>`;
+      desc: 'A tan base, irregular brown spots, broken black outlines (C shapes, never full circles) and tiny filler dots.',
+      draw: (i, u) => {
+        const r = rng(3 + i * 17);
+        let s = `<defs><radialGradient id="${u}lb" cx=".45" cy=".4" r=".8"><stop offset="0" stop-color="#e6b77d"/><stop offset="1" stop-color="#c9955b"/></radialGradient></defs><rect x="-10" y="-10" width="120" height="170" fill="url(#${u}lb)"/>`;
+        // spots on a jittered grid so they never merge into one blob
+        for (let gy = 0; gy < 7; gy++) for (let gx = 0; gx < 4; gx++) {
+          if (r() < 0.2) continue;
+          const cx = 8 + gx * 27 + (gy % 2 ? 13 : 0) + (r() - .5) * 8, cy = 8 + gy * 21 + (r() - .5) * 7;
+          const rx = 4.2 + r() * 3.2, ry = 3.2 + r() * 2.4, rot = r() * Math.PI;
+          // irregular brown blob
+          const blob = ell(cx, cy, rx, ry, rot, 0, Math.PI * 2, 10).map(([x, y]) => [R(x + (r() - .5) * 1.6), R(y + (r() - .5) * 1.6)]);
+          s += `<path d="${line(blob)} Z" fill="#9b6231" stroke="#9b6231" stroke-width="1" stroke-linejoin="round"/>`;
+          // 1-3 broken black outline pieces, each a different length and thickness
+          const pieces = 1 + Math.floor(r() * 3); let a = r() * Math.PI * 2;
+          for (let k = 0; k < pieces; k++) {
+            const len = 0.9 + r() * 1.6;
+            s += `<path d="${line(ell(cx, cy, rx + 1.6, ry + 1.6, rot, a, a + len, 10))}" stroke="#1b120c" stroke-width="${R(1.4 + r() * 1.3)}" fill="none" stroke-linecap="round"/>`;
+            a += len + 0.5 + r() * 0.9;
+          }
         }
+        for (let k = 0; k < 9; k++) s += `<circle cx="${R(r() * 100)}" cy="${R(r() * 145)}" r="${R(.8 + r() * .8)}" fill="#1b120c"/>`;
         return s;
       },
     },
     {
       id: 'gold-lines', name: 'Gold Line Art', level: 'Easy',
       desc: 'Negative space: a sheer nude with one fine gold stroke and a dot. Minimal and elegant.',
-      draw: (i, u) => base(NUDE, u + 'b') + [`<path d="M20 150 C30 100 70 90 80 30" stroke="#d4a646" stroke-width="2.6" fill="none"/><circle cx="80" cy="24" r="3.6" fill="#d4a646"/>`, `<path d="M-5 70 Q50 40 105 70" stroke="#d4a646" stroke-width="2.6" fill="none"/>`, `<path d="M50 10 V140" stroke="#d4a646" stroke-width="2.4"/><circle cx="50" cy="75" r="4" fill="#d4a646"/>`, `<path d="M-5 100 Q50 60 105 30" stroke="#d4a646" stroke-width="2.6" fill="none"/>`, `<circle cx="50" cy="60" r="16" stroke="#d4a646" stroke-width="2.4" fill="none"/>`][i],
+      draw: (i, u) => base(NUDE, u + 'b') + `<defs><linearGradient id="${u}gd" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#fff0b8"/><stop offset=".5" stop-color="#e2b04a"/><stop offset="1" stop-color="#fbe39a"/></linearGradient></defs>` +
+        [`<path d="M28 140 C34 100 62 88 70 34" stroke="url(#${u}gd)" stroke-width="2.8" fill="none"/><circle cx="70" cy="30" r="3.6" fill="url(#${u}gd)"/>`, `<path d="M8 72 Q50 46 92 72" stroke="url(#${u}gd)" stroke-width="2.8" fill="none"/>`, `<path d="M50 18 V132" stroke="url(#${u}gd)" stroke-width="2.6"/><circle cx="50" cy="74" r="3.6" fill="url(#${u}gd)"/>`, `<path d="M10 104 Q50 66 92 34" stroke="url(#${u}gd)" stroke-width="2.8" fill="none"/>`, `<circle cx="50" cy="64" r="11" stroke="url(#${u}gd)" stroke-width="2.6" fill="none"/>`][i],
     },
     {
       id: 'burgundy-gold', name: 'Burgundy & Gold', level: 'Beginner',
-      desc: 'Deep burgundy is a classic on ebony skin. Add gold glitter on the ring finger as the feature nail.',
+      desc: 'Deep burgundy is a classic on ebony skin. Fine gold glitter on the ring finger makes the feature nail.',
       draw: (i, u) => {
-        if (i !== 3) return `<defs><linearGradient id="${u}r" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#3e0712"/><stop offset=".5" stop-color="#6d1325"/><stop offset="1" stop-color="#3a0610"/></linearGradient></defs><rect x="-10" y="-10" width="120" height="170" fill="url(#${u}r)"/>`;
-        const r = rng(99); let s = `<rect x="-10" y="-10" width="120" height="170" fill="#b8862f"/>`;
-        for (let k = 0; k < 120; k++) s += `<circle cx="${r() * 100}" cy="${r() * 150}" r="${0.8 + r() * 2}" fill="${r() > .5 ? '#ffe7a3' : '#8a5f17'}"/>`;
+        if (i !== 3) return `<defs><radialGradient id="${u}r" cx=".42" cy=".38" r=".75"><stop offset="0" stop-color="#7a1529"/><stop offset=".6" stop-color="#55091a"/><stop offset="1" stop-color="#330410"/></radialGradient></defs><rect x="-10" y="-10" width="120" height="170" fill="url(#${u}r)"/>`;
+        const r = rng(99); let s = `<rect x="-10" y="-10" width="120" height="170" fill="#a8792a"/>`;
+        for (let k = 0; k < 300; k++) { const t = r(); s += `<circle cx="${R(r() * 104 - 2)}" cy="${R(r() * 154 - 2)}" r="${R(1 + r() * 1.5)}" fill="${t > .7 ? '#fff1c2' : t > .3 ? '#d9a744' : '#6f4a12'}"/>`; }
         return s;
       },
     },
     {
       id: 'pastel-swirl', name: 'Pastel Swirls', level: 'Easy',
       desc: 'Loose lilac, pink and blue swirls with a thin brush on a sheer nude. No two nails the same.',
-      draw: (i, u) => base(NUDE, u + 'b') + ['#c9b6e8', '#f3b3c1', '#a9cdf2'].map((c, k) => `<path d="M${-10 + k * 8} ${30 + k * 40 + i * 5} C25 ${k * 40 + i * 9} 60 ${70 + k * 30 - i * 6} 110 ${20 + k * 45}" stroke="${c}" stroke-width="9" fill="none" stroke-linecap="round" opacity=".95"/>`).join(''),
+      draw: (i, u) => base(NUDE, u + 'b') + `<defs>${soft(u + 'sw', .5)}</defs><g filter="url(#${u}sw)">` + ['#cdb8ec', '#f4b6c4', '#a8cdf3'].map((c, k) => `<path d="M${-10 + k * 6} ${30 + k * 36 + i * 4} C22 ${k * 34 + i * 8} 58 ${66 + k * 26 - i * 5} 110 ${18 + k * 40}" stroke="${c}" stroke-width="7" fill="none" stroke-linecap="round"/><path d="M${-10 + k * 6} ${28 + k * 36 + i * 4} C22 ${k * 34 + i * 8 - 2} 58 ${64 + k * 26 - i * 5} 110 ${16 + k * 40}" stroke="#fff" stroke-width="1.2" fill="none" opacity=".6" stroke-linecap="round"/>`).join('') + `</g>`,
     },
   ];
 
